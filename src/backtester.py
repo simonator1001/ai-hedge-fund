@@ -20,7 +20,7 @@ from tools.api import (
     get_financial_metrics,
     get_insider_trades,
 )
-from utils.display import print_backtest_results, format_backtest_row
+from utils.display import print_backtest_results, format_backtest_row, export_backtest_results_to_excel
 from typing_extensions import Callable
 from utils.ollama import ensure_ollama_and_model
 
@@ -59,6 +59,7 @@ class Backtester:
         self.model_name = model_name
         self.model_provider = model_provider
         self.selected_analysts = selected_analysts
+        self.table_rows = []  # Store table rows as instance variable
 
         # Initialize portfolio with support for long/short positions
         self.portfolio_values = []
@@ -310,7 +311,7 @@ class Backtester:
         self.prefetch_data()
 
         dates = pd.date_range(self.start_date, self.end_date, freq="B")
-        table_rows = []
+        self.table_rows = []  # Reset table rows at start of backtest
         performance_metrics = {
             'sharpe_ratio': None,
             'sortino_ratio': None,
@@ -494,8 +495,8 @@ class Backtester:
                 ),
             )
 
-            table_rows.extend(date_rows)
-            print_backtest_results(table_rows)
+            self.table_rows.extend(date_rows)
+            print_backtest_results(self.table_rows)
 
             # Update performance metrics if we have enough data
             if len(self.portfolio_values) > 3:
@@ -688,6 +689,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ollama", action="store_true", help="Use Ollama for local LLM inference"
     )
+    parser.add_argument(
+        "--excel-output",
+        type=str,
+        help="Export results to Excel file (e.g., 'backtest_results.xlsx')"
+    )
 
     args = parser.parse_args()
 
@@ -791,3 +797,8 @@ if __name__ == "__main__":
 
     performance_metrics = backtester.run_backtest()
     performance_df = backtester.analyze_performance()
+    
+    # Export to Excel if requested
+    if args.excel_output:
+        export_backtest_results_to_excel(performance_df, backtester.table_rows, args.excel_output)
+        print(f"\nResults exported to {args.excel_output}")

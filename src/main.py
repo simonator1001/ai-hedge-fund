@@ -161,6 +161,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ollama", action="store_true", help="Use Ollama for local LLM inference"
     )
+    parser.add_argument(
+        "--excel-output",
+        type=str,
+        help="Export results to Excel file (e.g., 'trading_results.xlsx')"
+    )
 
     args = parser.parse_args()
 
@@ -315,3 +320,9 @@ if __name__ == "__main__":
         model_provider=model_provider,
     )
     print_trading_output(result)
+    
+    # Export to Excel if requested
+    if args.excel_output:
+        from utils.display import export_trading_results_to_excel
+        export_trading_results_to_excel(result, args.excel_output)
+        print(f"\nResults exported to {args.excel_output}")
