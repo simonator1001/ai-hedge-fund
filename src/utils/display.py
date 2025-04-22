@@ -3,7 +3,6 @@ from tabulate import tabulate
 from .analysts import ANALYST_ORDER
 import os
 import json
-import pandas as pd
 
 
 def sort_agent_signals(signals):
@@ -367,103 +366,54 @@ def format_backtest_row(
         ]
 
 
-def export_trading_results_to_excel(result: dict, filename: str = "trading_results.xlsx") -> None:
-    """
-    Export trading results to Excel file.
+def export_backtest_results_to_excel(performance_df, table_rows, output_file):
+    """Export backtest results to an Excel file"""
+    import pandas as pd
+    from datetime import datetime
     
-    Args:
-        result (dict): Dictionary containing decisions and analyst signals
-        filename (str): Name of the Excel file to create
-    """
-    # Create a Pandas Excel writer
-    with pd.ExcelWriter(filename, engine='openpyxl') as writer:
-        # Export decisions for each ticker
-        decisions_data = []
-        for ticker, decision in result.get("decisions", {}).items():
-            decision_data = {
-                "Ticker": ticker,
-                "Action": decision.get("action", "").upper(),
-                "Quantity": decision.get("quantity"),
-                "Confidence": f"{decision.get('confidence', 0):.1f}%",
-                "Reasoning": decision.get("reasoning", "")
-            }
-            decisions_data.append(decision_data)
-        
-        if decisions_data:
-            decisions_df = pd.DataFrame(decisions_data)
-            decisions_df.to_excel(writer, sheet_name='Trading Decisions', index=False)
-        
-        # Export analyst signals for each ticker
-        signals_data = []
-        for ticker, decisions in result.get("decisions", {}).items():
-            for agent, signals in result.get("analyst_signals", {}).items():
-                if ticker in signals:
-                    signal = signals[ticker]
-                    agent_name = agent.replace("_agent", "").replace("_", " ").title()
-                    signal_data = {
-                        "Ticker": ticker,
-                        "Agent": agent_name,
-                        "Signal": signal.get("signal", "").upper(),
-                        "Confidence": f"{signal.get('confidence', 0)}%",
-                        "Reasoning": signal.get("reasoning", "")
-                    }
-                    signals_data.append(signal_data)
-        
-        if signals_data:
-            signals_df = pd.DataFrame(signals_data)
-            signals_df.to_excel(writer, sheet_name='Analyst Signals', index=False)
-
-
-def export_backtest_results_to_excel(performance_df: pd.DataFrame, table_rows: list, filename: str = "backtest_results.xlsx") -> None:
-    """
-    Export backtest results to Excel file.
+    # Create a Pandas Excel writer using XlsxWriter as the engine
+    writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
     
-    Args:
-        performance_df (pd.DataFrame): DataFrame containing performance metrics
-        table_rows (list): List of backtest result rows
-        filename (str): Name of the Excel file to create
-    """
-    with pd.ExcelWriter(filename, engine='openpyxl') as writer:
-        # Export performance metrics
-        if not performance_df.empty:
-            performance_df.to_excel(writer, sheet_name='Performance Metrics')
-        
-        # Export trading history
-        trading_data = []
-        summary_data = []
-        
-        for row in table_rows:
-            if isinstance(row[1], str) and "PORTFOLIO SUMMARY" in row[1]:
-                # Handle summary rows
-                summary_data.append({
-                    "Date": row[0],
-                    "Total Position Value": float(row[6].split("$")[1].split(Style.RESET_ALL)[0].replace(",", "")),
-                    "Cash Balance": float(row[7].split("$")[1].split(Style.RESET_ALL)[0].replace(",", "")),
-                    "Total Value": float(row[8].split("$")[1].split(Style.RESET_ALL)[0].replace(",", "")),
-                    "Return": float(row[9].split("%")[0].replace("+", "").replace(Style.RESET_ALL, "")),
-                    "Sharpe Ratio": float(row[10].split(Style.RESET_ALL)[0]) if row[10] else None,
-                    "Sortino Ratio": float(row[11].split(Style.RESET_ALL)[0]) if row[11] else None,
-                    "Max Drawdown": float(row[12].split("%")[0].replace("-", "")) if row[12] else None
-                })
-            else:
-                # Handle trading rows
-                trading_data.append({
-                    "Date": row[0],
-                    "Ticker": row[1].replace(Fore.CYAN, "").replace(Style.RESET_ALL, ""),
-                    "Action": row[2].replace(Fore.GREEN, "").replace(Fore.RED, "").replace(Fore.WHITE, "").replace(Style.RESET_ALL, ""),
-                    "Quantity": float(row[3].replace(Fore.GREEN, "").replace(Fore.RED, "").replace(Fore.WHITE, "").replace(Style.RESET_ALL, "").replace(",", "")),
-                    "Price": float(row[4].replace(Fore.WHITE, "").replace(Style.RESET_ALL, "").replace(",", "")),
-                    "Shares": float(row[5].replace(Fore.WHITE, "").replace(Style.RESET_ALL, "").replace(",", "")),
-                    "Position Value": float(row[6].replace(Fore.YELLOW, "").replace(Style.RESET_ALL, "").replace(",", "")),
-                    "Bullish Count": int(row[7].replace(Fore.GREEN, "").replace(Style.RESET_ALL, "")),
-                    "Bearish Count": int(row[8].replace(Fore.RED, "").replace(Style.RESET_ALL, "")),
-                    "Neutral Count": int(row[9].replace(Fore.BLUE, "").replace(Style.RESET_ALL, ""))
-                })
-        
-        if trading_data:
-            trading_df = pd.DataFrame(trading_data)
-            trading_df.to_excel(writer, sheet_name='Trading History', index=False)
-        
-        if summary_data:
-            summary_df = pd.DataFrame(summary_data)
-            summary_df.to_excel(writer, sheet_name='Portfolio Summary', index=False)
+    # Convert table_rows to DataFrame
+    columns = [
+        'Date', 'Ticker', 'Action', 'Quantity', 'Price', 'Shares Owned',
+        'Position Value', 'Bullish Count', 'Bearish Count', 'Neutral Count'
+    ]
+    
+    # Filter out summary rows and convert to DataFrame
+    trade_rows = [row for row in table_rows if not isinstance(row[1], str) or "PORTFOLIO SUMMARY" not in row[1]]
+    trades_df = pd.DataFrame(trade_rows, columns=columns)
+    
+    # Write the trades DataFrame to the first sheet
+    trades_df.to_excel(writer, sheet_name='Trades', index=False)
+    
+    # Write the performance DataFrame to the second sheet
+    performance_df.to_excel(writer, sheet_name='Performance', index=True)
+    
+    # Get the xlsxwriter workbook and worksheet objects
+    workbook = writer.book
+    trades_worksheet = writer.sheets['Trades']
+    performance_worksheet = writer.sheets['Performance']
+    
+    # Add some formatting
+    header_format = workbook.add_format({
+        'bold': True,
+        'text_wrap': True,
+        'valign': 'top',
+        'fg_color': '#D7E4BC',
+        'border': 1
+    })
+    
+    # Format the headers
+    for col_num, value in enumerate(trades_df.columns.values):
+        trades_worksheet.write(0, col_num, value, header_format)
+        trades_worksheet.set_column(col_num, col_num, 15)  # Set column width
+    
+    for col_num, value in enumerate(performance_df.columns.values):
+        performance_worksheet.write(0, col_num, value, header_format)
+        performance_worksheet.set_column(col_num, col_num, 15)
+    
+    # Save the Excel file
+    writer.close()
+    
+    print(f"\nResults exported to {output_file}")

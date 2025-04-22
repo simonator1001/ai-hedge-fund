@@ -46,3 +46,10 @@ Thumbs.db
 
 # Txt files
 *.txt
+
+# Excel files
+*.xlsx
+~$*.xlsx
+
+# Node modules
+node_modules/
