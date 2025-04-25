@@ -96,5 +96,5 @@ def sentiment_agent(state: AgentState):
 
     return {
         "messages": [message],
-        "data": data,
+        "data": state["data"],
     }
