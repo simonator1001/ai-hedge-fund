@@ -1,9 +1,12 @@
-from langchain_core.messages import HumanMessage
-from graph.state import AgentState, show_agent_reasoning
-from utils.progress import progress
-import json
+#!/usr/bin/env python3
 
-from tools.api import get_financial_metrics
+from langchain_core.messages import HumanMessage
+from src.graph.state import AgentState, show_agent_reasoning
+from src.utils.progress import progress
+import json
+from pydantic import BaseModel, validator
+from typing_extensions import Literal
+from src.tools.api import get_financial_metrics
 
 
 ##### Fundamental Agent #####
