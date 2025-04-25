@@ -417,3 +417,138 @@ def export_backtest_results_to_excel(performance_df, table_rows, output_file):
     writer.close()
     
     print(f"\nResults exported to {output_file}")
+
+
+def export_trading_results_to_excel(result: dict, output_file: str = None):
+    """Export trading results to a comprehensive Excel file with multiple worksheets."""
+    import pandas as pd
+    from datetime import datetime
+    
+    # Generate default filename if none provided
+    if not output_file:
+        current_time = datetime.now().strftime("%Y%m%d-%H%M")
+        tickers = list(result.get("decisions", {}).keys())
+        ticker_str = "_".join(tickers)
+        start_date = result.get("data", {}).get("start_date", "")
+        end_date = result.get("data", {}).get("end_date", "")
+        output_file = f"{start_date} to {end_date} {ticker_str} stock analysis {current_time}.xlsx"
+    
+    # Create Excel writer
+    writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
+    workbook = writer.book
+    
+    # Add formatting
+    header_format = workbook.add_format({
+        'bold': True,
+        'text_wrap': True,
+        'valign': 'top',
+        'fg_color': '#D7E4BC',
+        'border': 1
+    })
+    
+    # 1. Trading Decisions Worksheet
+    decisions_data = []
+    for ticker, decision in result.get("decisions", {}).items():
+        decisions_data.append({
+            'Ticker': ticker,
+            'Action': decision.get('action', ''),
+            'Quantity': decision.get('quantity', 0),
+            'Confidence': decision.get('confidence', 0),
+            'Reasoning': decision.get('reasoning', '')
+        })
+    
+    if decisions_data:
+        decisions_df = pd.DataFrame(decisions_data)
+        decisions_df.to_excel(writer, sheet_name='Trading Decisions', index=False)
+        worksheet = writer.sheets['Trading Decisions']
+        for idx, col in enumerate(decisions_df.columns):
+            worksheet.write(0, idx, col, header_format)
+            worksheet.set_column(idx, idx, 20 if col != 'Reasoning' else 50)
+    
+    # 2. Analyst Signals Worksheet
+    signals_data = []
+    for ticker in result.get("decisions", {}).keys():
+        for agent, signals in result.get("analyst_signals", {}).items():
+            if ticker in signals:
+                signals_data.append({
+                    'Ticker': ticker,
+                    'Analyst': agent,
+                    'Signal': signals[ticker].get('signal', ''),
+                    'Confidence': signals[ticker].get('confidence', 0),
+                    'Reasoning': signals[ticker].get('reasoning', '')
+                })
+    
+    if signals_data:
+        signals_df = pd.DataFrame(signals_data)
+        signals_df.to_excel(writer, sheet_name='Analyst Signals', index=False)
+        worksheet = writer.sheets['Analyst Signals']
+        for idx, col in enumerate(signals_df.columns):
+            worksheet.write(0, idx, col, header_format)
+            worksheet.set_column(idx, idx, 20 if col != 'Reasoning' else 50)
+    
+    # 3. Technical Analysis Worksheet
+    tech_data = []
+    for ticker, signals in result.get("analyst_signals", {}).get("technical_analyst", {}).items():
+        if isinstance(signals, dict) and 'strategy_signals' in signals:
+            for strategy, details in signals['strategy_signals'].items():
+                if isinstance(details, dict):
+                    tech_data.append({
+                        'Ticker': ticker,
+                        'Strategy': strategy,
+                        'Signal': details.get('signal', ''),
+                        'Confidence': details.get('confidence', 0),
+                        'Metrics': str(details.get('metrics', {}))
+                    })
+    
+    if tech_data:
+        tech_df = pd.DataFrame(tech_data)
+        tech_df.to_excel(writer, sheet_name='Technical Analysis', index=False)
+        worksheet = writer.sheets['Technical Analysis']
+        for idx, col in enumerate(tech_df.columns):
+            worksheet.write(0, idx, col, header_format)
+            worksheet.set_column(idx, idx, 20 if col != 'Metrics' else 40)
+    
+    # 4. Fundamental Analysis Worksheet
+    fund_data = []
+    for ticker, signals in result.get("analyst_signals", {}).get("fundamentals_agent", {}).items():
+        if isinstance(signals, dict) and 'reasoning' in signals:
+            reasoning = signals['reasoning']
+            if isinstance(reasoning, dict):
+                for aspect, details in reasoning.items():
+                    fund_data.append({
+                        'Ticker': ticker,
+                        'Aspect': aspect,
+                        'Signal': details.get('signal', ''),
+                        'Details': details.get('details', '')
+                    })
+    
+    if fund_data:
+        fund_df = pd.DataFrame(fund_data)
+        fund_df.to_excel(writer, sheet_name='Fundamental Analysis', index=False)
+        worksheet = writer.sheets['Fundamental Analysis']
+        for idx, col in enumerate(fund_df.columns):
+            worksheet.write(0, idx, col, header_format)
+            worksheet.set_column(idx, idx, 20 if col != 'Details' else 40)
+    
+    # 5. Sentiment Analysis Worksheet
+    sentiment_data = []
+    for ticker, signals in result.get("analyst_signals", {}).get("sentiment_agent", {}).items():
+        if isinstance(signals, dict):
+            sentiment_data.append({
+                'Ticker': ticker,
+                'Signal': signals.get('signal', ''),
+                'Confidence': signals.get('confidence', 0),
+                'Reasoning': signals.get('reasoning', '')
+            })
+    
+    if sentiment_data:
+        sentiment_df = pd.DataFrame(sentiment_data)
+        sentiment_df.to_excel(writer, sheet_name='Sentiment Analysis', index=False)
+        worksheet = writer.sheets['Sentiment Analysis']
+        for idx, col in enumerate(sentiment_df.columns):
+            worksheet.write(0, idx, col, header_format)
+            worksheet.set_column(idx, idx, 20 if col != 'Reasoning' else 40)
+    
+    # Save the Excel file
+    writer.close()
+    return output_file
