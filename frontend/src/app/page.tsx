@@ -1,92 +1,135 @@
+'use client';
+
+import { useState } from 'react';
+import { format } from 'date-fns';
+
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      tickers: formData.get('tickers')?.toString().split(',').map(t => t.trim()),
+      startDate: formData.get('startDate'),
+      endDate: formData.get('endDate'),
+      showReasoning: formData.get('showReasoning') === 'true',
+    };
+
+    try {
+      const response = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Simulation failed');
+      }
+
+      const result = await response.json();
+      setResult(result.outputFile);
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to run simulation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Market Overview */}
-      <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Market Overview</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">S&P 500</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">4,567.89</p>
-            <p className="text-sm text-green-500">+1.23%</p>
+    <div className="space-y-8">
+      <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
+        <h1 className="text-2xl font-bold text-white mb-6">Stock Market Simulator</h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
+              Stock Tickers
+            </label>
+            <input
+              type="text"
+              name="tickers"
+              id="tickers"
+              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="PLTR, AAPL, MSFT"
+              required
+            />
+            <p className="mt-1 text-sm text-gray-400">Separate multiple tickers with commas</p>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">NASDAQ</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">14,234.56</p>
-            <p className="text-sm text-green-500">+0.89%</p>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-200">
+                Start Date
+              </label>
+              <input
+                type="date"
+                name="startDate"
+                id="startDate"
+                className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-200">
+                End Date
+              </label>
+              <input
+                type="date"
+                name="endDate"
+                id="endDate"
+                className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                required
+              />
+            </div>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">DOW</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">34,567.89</p>
-            <p className="text-sm text-red-500">-0.45%</p>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="showReasoning"
+              id="showReasoning"
+              value="true"
+              className="h-4 w-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700"
+            />
+            <label htmlFor="showReasoning" className="ml-2 block text-sm text-gray-200">
+              Show AI Reasoning
+            </label>
           </div>
-          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <p className="text-sm text-gray-500 dark:text-gray-400">VIX</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">15.67</p>
-            <p className="text-sm text-green-500">-2.34%</p>
-          </div>
-        </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Running Simulation...' : 'Run Simulation'}
+          </button>
+        </form>
       </div>
 
-      {/* Portfolio Summary */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Portfolio Summary</h2>
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Total Value</p>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">$1,234,567.89</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Today&apos;s Change</p>
-            <p className="text-xl font-bold text-green-500">+$12,345.67 (+1.23%)</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Cash Balance</p>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">$123,456.78</p>
-          </div>
+      {result && (
+        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
+          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results</h2>
+          <p className="text-gray-200">
+            Your simulation results are ready! Download them here:
+          </p>
+          <a
+            href={`/api/download/${result}`}
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Download Excel Report
+          </a>
         </div>
-      </div>
-
-      {/* Recent Trades */}
-      <div className="lg:col-span-3 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Trades</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead>
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Symbol</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Quantity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">AAPL</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-500">Buy</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">100</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$175.23</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">10:23:45</td>
-              </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">MSFT</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500">Sell</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">50</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$325.67</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">09:45:12</td>
-              </tr>
-              <tr>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">GOOGL</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-500">Buy</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">25</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">$2,345.67</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">09:12:34</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
