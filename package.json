@@ -1,9 +1,9 @@
 {
   "dependencies": {
-    "@smithery/cli": "^1.1.71",
-    "@neondatabase/mcp-server-neon": "latest",
+    "@21st-dev/magic": "latest",
     "@amap/amap-maps-mcp-server": "latest",
-    "@21st-dev/magic": "latest"
+    "@neondatabase/mcp-server-neon": "latest",
+    "@smithery/cli": "^1.1.71"
   },
   "mcp": {
     "config": "./mcp.config.js"

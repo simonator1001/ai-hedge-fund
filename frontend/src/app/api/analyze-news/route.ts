@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { callDeepSeek } from '@/utils/deepseek';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
@@ -25,7 +21,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const newsData = await newsResponse.json();
 
-    // Analyze news with OpenAI
+    // Analyze news with DeepSeek
     const analysisPrompt = `
       Analyze the following news articles and identify potential investment opportunities:
       ${JSON.stringify(newsData, null, 2)}
@@ -59,22 +55,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     `;
 
-    const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are a financial analyst expert. Analyze news articles and identify investment opportunities. Be thorough but concise in your analysis."
-        },
-        {
-          role: "user",
-          content: analysisPrompt
-        }
-      ],
-      model: "gpt-4-turbo-preview",
-      response_format: { type: "json_object" },
-    });
+    const analysisResult = await callDeepSeek([
+      {
+        role: "system",
+        content: "You are a financial analyst expert. Analyze news articles and identify investment opportunities. Be thorough but concise in your analysis."
+      },
+      {
+        role: "user",
+        content: analysisPrompt
+      }
+    ]);
 
-    const analysis = JSON.parse(completion.choices[0].message.content || '{}');
+    const analysis = JSON.parse(analysisResult);
 
     return NextResponse.json(analysis);
   } catch (error) {

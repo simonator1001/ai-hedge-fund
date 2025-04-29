@@ -486,9 +486,52 @@ def export_trading_results_to_excel(result: dict, output_file: str = None):
             worksheet.write(0, idx, col, header_format)
             worksheet.set_column(idx, idx, 20 if col != 'Reasoning' else 50)
     
-    # 3. Technical Analysis Worksheet
+    # 3. Individual Analyst Worksheets - NEW SECTION
+    # Create a worksheet for each analyst with their detailed analysis
+    for agent, signals in result.get("analyst_signals", {}).items():
+        # Skip risk management and portfolio management
+        if agent in ['risk_management_agent', 'portfolio_management_agent']:
+            continue
+            
+        # Format the analyst name for the worksheet
+        agent_name = agent.replace('_agent', '').replace('_', ' ').title()
+        sheet_name = agent_name[:31]  # Excel worksheet names can't exceed 31 chars
+        
+        analyst_data = []
+        for ticker, signal in signals.items():
+            # Add basic signal data
+            data_row = {
+                'Ticker': ticker,
+                'Signal': signal.get('signal', ''),
+                'Confidence': signal.get('confidence', 0),
+                'Reasoning': signal.get('reasoning', '')
+            }
+            
+            # If there's additional analysis data, add it
+            if isinstance(signal.get('reasoning'), dict):
+                for key, value in signal.get('reasoning', {}).items():
+                    if isinstance(value, dict) and 'details' in value:
+                        data_row[key] = value.get('details', '')
+                    else:
+                        data_row[key] = str(value)
+            
+            analyst_data.append(data_row)
+        
+        if analyst_data:
+            analyst_df = pd.DataFrame(analyst_data)
+            analyst_df.to_excel(writer, sheet_name=sheet_name, index=False)
+            worksheet = writer.sheets[sheet_name]
+            for idx, col in enumerate(analyst_df.columns):
+                worksheet.write(0, idx, col, header_format)
+                # Set wider column width for text fields
+                if col in ['Reasoning'] or 'details' in col.lower():
+                    worksheet.set_column(idx, idx, 50)
+                else:
+                    worksheet.set_column(idx, idx, 15)
+    
+    # 4. Technical Analysis Worksheet
     tech_data = []
-    for ticker, signals in result.get("analyst_signals", {}).get("technical_analyst", {}).items():
+    for ticker, signals in result.get("analyst_signals", {}).get("technical_analyst_agent", {}).items():
         if isinstance(signals, dict) and 'strategy_signals' in signals:
             for strategy, details in signals['strategy_signals'].items():
                 if isinstance(details, dict):
@@ -508,7 +551,7 @@ def export_trading_results_to_excel(result: dict, output_file: str = None):
             worksheet.write(0, idx, col, header_format)
             worksheet.set_column(idx, idx, 20 if col != 'Metrics' else 40)
     
-    # 4. Fundamental Analysis Worksheet
+    # 5. Fundamental Analysis Worksheet
     fund_data = []
     for ticker, signals in result.get("analyst_signals", {}).get("fundamentals_agent", {}).items():
         if isinstance(signals, dict) and 'reasoning' in signals:
@@ -530,7 +573,7 @@ def export_trading_results_to_excel(result: dict, output_file: str = None):
             worksheet.write(0, idx, col, header_format)
             worksheet.set_column(idx, idx, 20 if col != 'Details' else 40)
     
-    # 5. Sentiment Analysis Worksheet
+    # 6. Sentiment Analysis Worksheet
     sentiment_data = []
     for ticker, signals in result.get("analyst_signals", {}).get("sentiment_agent", {}).items():
         if isinstance(signals, dict):
