@@ -4,10 +4,13 @@ import { callDeepSeek } from '@/utils/deepseek';
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const { startDate, endDate, keywords } = await req.json();
+    console.log('Analyzing news for:', { startDate, endDate, keywords });
 
     // Fetch news using web search
     const searchQuery = `${keywords} stock market news from ${startDate} to ${endDate}`;
-    const newsResponse = await fetch('http://localhost:3000/api/web-search', {
+    console.log('Search query:', searchQuery);
+
+    const newsResponse = await fetch(new URL('/api/web-search', req.url).toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -16,10 +19,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     if (!newsResponse.ok) {
-      throw new Error('Failed to fetch news');
+      const errorText = await newsResponse.text();
+      console.error('Web search error:', {
+        status: newsResponse.status,
+        statusText: newsResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to fetch news: ${newsResponse.status} ${newsResponse.statusText}`);
     }
 
     const newsData = await newsResponse.json();
+    console.log('News articles found:', newsData.length);
+
+    if (newsData.error) {
+      throw new Error(`Web search failed: ${newsData.error}`);
+    }
 
     // Analyze news with DeepSeek
     const analysisPrompt = `
@@ -55,6 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     `;
 
+    console.log('Calling DeepSeek for analysis...');
     const analysisResult = await callDeepSeek([
       {
         role: "system",
@@ -66,13 +81,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       }
     ]);
 
+    console.log('Parsing DeepSeek response...');
     const analysis = JSON.parse(analysisResult);
+    console.log('Analysis complete:', {
+      newsCount: analysis.news?.length || 0,
+      opportunitiesCount: analysis.opportunities?.length || 0
+    });
 
     return NextResponse.json(analysis);
   } catch (error) {
     console.error('Error analyzing news:', error);
     return NextResponse.json(
-      { error: 'Failed to analyze news' },
+      { 
+        error: error instanceof Error ? error.message : 'Failed to analyze news',
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     );
   }

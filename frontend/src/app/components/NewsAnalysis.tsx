@@ -16,6 +16,11 @@ interface OpportunityItem {
   newsReferences: string[];
 }
 
+interface ErrorResponse {
+  error: string;
+  timestamp?: string;
+}
+
 export default function NewsAnalysis({
   onStockSelect
 }: {
@@ -24,6 +29,7 @@ export default function NewsAnalysis({
   const [loading, setLoading] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [opportunities, setOpportunities] = useState<OpportunityItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({
     start: new Date().toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
@@ -33,6 +39,7 @@ export default function NewsAnalysis({
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       // Fetch news and analyze
       const response = await fetch('/api/analyze-news', {
@@ -47,14 +54,23 @@ export default function NewsAnalysis({
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to fetch news');
-      
       const data = await response.json();
-      setNews(data.news);
-      setOpportunities(data.opportunities);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to analyze news');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      setNews(data.news || []);
+      setOpportunities(data.opportunities || []);
     } catch (error) {
       console.error('Error:', error);
-      alert('Failed to analyze news. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to analyze news. Please try again.');
+      setNews([]);
+      setOpportunities([]);
     } finally {
       setLoading(false);
     }
@@ -81,6 +97,7 @@ export default function NewsAnalysis({
               onChange={(e) => setKeywords(e.target.value)}
               className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               placeholder="AI, Blockchain, Electric Vehicles..."
+              required
             />
           </div>
 
@@ -95,6 +112,7 @@ export default function NewsAnalysis({
                 value={dateRange.start}
                 onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                 className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
               />
             </div>
             <div>
@@ -107,6 +125,7 @@ export default function NewsAnalysis({
                 value={dateRange.end}
                 onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                 className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                required
               />
             </div>
           </div>
@@ -119,6 +138,12 @@ export default function NewsAnalysis({
             {loading ? 'Analyzing...' : 'Analyze News'}
           </button>
         </form>
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-900/50 border border-red-700 rounded-md">
+            <p className="text-red-200">{error}</p>
+          </div>
+        )}
       </div>
 
       {opportunities.length > 0 && (

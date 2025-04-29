@@ -3,9 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const { query } = await req.json();
+    console.log('Web search query:', query);
 
-    // Use the RAG Web Browser to search and scrape news
-    const response = await fetch('https://api.apify.com/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items', {
+    // Check if APIFY_API_KEY is set
+    if (!process.env.APIFY_API_KEY) {
+      console.error('APIFY_API_KEY is not set');
+      throw new Error('APIFY_API_KEY is not configured');
+    }
+
+    const apiUrl = 'https://api.apify.com/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items';
+    console.log('Calling Apify API:', apiUrl);
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,10 +29,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch search results');
+      const errorText = await response.text();
+      console.error('Apify API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to fetch search results: ${response.status} ${response.statusText}`);
     }
 
     const results = await response.json();
+    console.log('Apify results count:', results.length);
 
     // Transform the results into a more usable format
     const articles = results.map((result: any) => ({
@@ -36,9 +52,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json(articles);
   } catch (error) {
-    console.error('Error searching web:', error);
+    console.error('Error in web search:', error);
     return NextResponse.json(
-      { error: 'Failed to search web' },
+      { error: error instanceof Error ? error.message : 'Failed to search web' },
       { status: 500 }
     );
   }
