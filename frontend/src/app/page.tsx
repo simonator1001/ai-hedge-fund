@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
+import NewsAnalysis from './components/NewsAnalysis';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [showSimulation, setShowSimulation] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -42,79 +44,94 @@ export default function Home() {
     }
   };
 
+  const handleStockSelect = (tickers: string[]) => {
+    const form = document.getElementById('simulation-form') as HTMLFormElement;
+    if (form) {
+      const tickerInput = form.querySelector('#tickers') as HTMLInputElement;
+      if (tickerInput) {
+        tickerInput.value = tickers.join(', ');
+      }
+    }
+    setShowSimulation(true);
+  };
+
   return (
     <div className="space-y-8">
-      <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
-        <h1 className="text-2xl font-bold text-white mb-6">Stock Market Simulator</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
-              Stock Tickers
-            </label>
-            <input
-              type="text"
-              name="tickers"
-              id="tickers"
-              className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              placeholder="PLTR, AAPL, MSFT"
-              required
-            />
-            <p className="mt-1 text-sm text-gray-400">Separate multiple tickers with commas</p>
-          </div>
+      <NewsAnalysis onStockSelect={handleStockSelect} />
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+      {(showSimulation || result) && (
+        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
+          <h1 className="text-2xl font-bold text-white mb-6">Stock Market Simulator</h1>
+          
+          <form id="simulation-form" onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-200">
-                Start Date
+              <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
+                Stock Tickers
               </label>
               <input
-                type="date"
-                name="startDate"
-                id="startDate"
+                type="text"
+                name="tickers"
+                id="tickers"
                 className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                placeholder="PLTR, AAPL, MSFT"
                 required
               />
+              <p className="mt-1 text-sm text-gray-400">Separate multiple tickers with commas</p>
             </div>
 
-            <div>
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-200">
-                End Date
-              </label>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div>
+                <label htmlFor="startDate" className="block text-sm font-medium text-gray-200">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  name="startDate"
+                  id="startDate"
+                  className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-200">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  name="endDate"
+                  id="endDate"
+                  className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  defaultValue={format(new Date(), 'yyyy-MM-dd')}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center">
               <input
-                type="date"
-                name="endDate"
-                id="endDate"
-                className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                defaultValue={format(new Date(), 'yyyy-MM-dd')}
-                required
+                type="checkbox"
+                name="showReasoning"
+                id="showReasoning"
+                value="true"
+                className="h-4 w-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700"
               />
+              <label htmlFor="showReasoning" className="ml-2 block text-sm text-gray-200">
+                Show AI Reasoning
+              </label>
             </div>
-          </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="showReasoning"
-              id="showReasoning"
-              value="true"
-              className="h-4 w-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700"
-            />
-            <label htmlFor="showReasoning" className="ml-2 block text-sm text-gray-200">
-              Show AI Reasoning
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Running Simulation...' : 'Run Simulation'}
-          </button>
-        </form>
-      </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Running Simulation...' : 'Run Simulation'}
+            </button>
+          </form>
+        </div>
+      )}
 
       {result && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
