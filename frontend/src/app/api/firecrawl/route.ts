@@ -8,18 +8,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    // Format the results in a way that matches the NewsItem interface
-    const formattedResults = [
-      {
-        title: "Test News",
-        description: "This is a test news item",
-        url: "https://example.com",
-        content: "This is test content to verify the data format",
-        publishedAt: new Date().toISOString()
-      }
-    ];
+    // First, try to get news using RAG Web Browser
+    const searchResponse = await fetch('/api/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tool: 'apify/rag-web-browser',
+        input: {
+          query: query,
+          maxResults: limit,
+          outputFormats: ['markdown'],
+          removeCookieWarnings: true,
+          htmlTransformer: 'readable'
+        }
+      }),
+    });
 
-    // Return formatted results for testing
+    if (!searchResponse.ok) {
+      throw new Error('Failed to fetch search results');
+    }
+
+    const searchResults = await searchResponse.json();
+    
+    // Transform the results to match our NewsItem interface
+    const formattedResults = searchResults.map((result: any) => ({
+      title: result.title || 'Untitled',
+      description: result.snippet || result.description || '',
+      url: result.url,
+      content: result.markdown || result.content,
+      publishedAt: new Date().toISOString() // Since RAG Web Browser doesn't provide dates
+    }));
+
     return NextResponse.json(formattedResults);
 
     /* Commented out for testing
