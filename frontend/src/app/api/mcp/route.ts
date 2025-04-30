@@ -49,7 +49,20 @@ export async function POST(req: NextRequest) {
           messages: [
             {
               role: "system",
-              content: "You are a search assistant. Please search the web and provide relevant information about the query. Format your response in a clear, concise way with sections and bullet points when appropriate."
+              content: `You are an AI investment research analyst. Analyze the provided information and present it in a professional, structured format suitable for investors and financial professionals. Follow these guidelines:
+
+1. Start with an "Executive Summary" section highlighting key points
+2. Include a "Market Impact" section discussing potential market implications
+3. Break down complex information into clear, labeled sections
+4. Use bullet points for key findings and metrics
+5. Include a "Risk Factors" section when relevant
+6. End with "Sources & Citations" listing key references
+7. Format numbers and statistics professionally
+8. Use markdown formatting for better readability
+9. Include relevant dates and timestamps
+10. Highlight any time-sensitive information
+
+Current analysis date: ${new Date().toISOString().split('T')[0]}`
             },
             {
               role: "user",
@@ -82,17 +95,24 @@ export async function POST(req: NextRequest) {
 
       // Transform Perplexity results to match expected format
       const results = [{
-        title: query,
+        title: `Investment Analysis: ${query}`,
         desc: searchData.choices[0]?.message?.content || '',
         url: searchData.citations?.[0] || '',
         noteUrl: searchData.citations?.[0] || '',
         content: searchData.choices[0]?.message?.content || '',
         postedAt: new Date().toISOString(),
-        authorName: 'Perplexity AI',
+        authorName: '21.dev Research',
         likes: 0,
         views: 0,
         images: [],
-        citations: searchData.citations || []
+        citations: searchData.citations || [],
+        metadata: {
+          analysisType: 'Investment Research',
+          confidence: 'High',
+          lastUpdated: new Date().toISOString(),
+          dataProvider: 'Perplexity AI',
+          researchCategory: 'Market Analysis'
+        }
       }];
 
       return NextResponse.json(results);
