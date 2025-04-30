@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('Calling Apify with tool:', tool);
+    console.log('Calling Apify with tool:', tool, 'and input:', input);
 
     // Call the RAG Web Browser Actor
     const response = await fetch(`https://api.apify.com/v2/acts/${tool}/runs?token=${process.env.APIFY_API_KEY}`, {

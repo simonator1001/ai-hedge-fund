@@ -8,11 +8,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    // First, try to get news using RAG Web Browser
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3001';  // Using 3001 since 3000 is taken
+    // Get the base URL from the request
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const host = req.headers.get('host') || 'localhost:3001';
+    const baseUrl = `${protocol}://${host}`;
 
+    // Call the MCP endpoint with absolute URL
     const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
       method: 'POST',
       headers: {
@@ -31,7 +32,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!searchResponse.ok) {
-      console.error('Search response error:', await searchResponse.text());
+      const errorText = await searchResponse.text();
+      console.error('Search response error:', {
+        status: searchResponse.status,
+        statusText: searchResponse.statusText,
+        error: errorText
+      });
       throw new Error(`Failed to fetch search results: ${searchResponse.status} ${searchResponse.statusText}`);
     }
 
