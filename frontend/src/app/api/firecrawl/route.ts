@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        tool: 'apify/rag-web-browser',
+        tool: 'apify~rag-web-browser',
         input: {
           query: query,
           maxResults: limit,
@@ -44,13 +44,13 @@ export async function POST(req: NextRequest) {
     const searchResults = await searchResponse.json();
     
     // Transform the results to match our NewsItem interface
-    const formattedResults = searchResults.map((result: any) => ({
-      title: result.title || 'Untitled',
-      description: result.snippet || result.description || '',
-      url: result.url,
+    const formattedResults = Array.isArray(searchResults) ? searchResults.map((result: any) => ({
+      title: result.title || result.metadata?.title || 'Untitled',
+      description: result.description || result.metadata?.description || result.snippet || '',
+      url: result.url || result.metadata?.url,
       content: result.markdown || result.content,
       publishedAt: new Date().toISOString() // Since RAG Web Browser doesn't provide dates
-    }));
+    })) : [];
 
     return NextResponse.json(formattedResults);
 
