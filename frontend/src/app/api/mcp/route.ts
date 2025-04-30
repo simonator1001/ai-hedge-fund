@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 interface PerplexityResult {
-  title: string;
-  url: string;
-  snippet?: string;
-  text?: string;
-  published_date?: string;
-  source?: string;
+  id: string;
+  model: string;
+  choices: Array<{
+    index: number;
+    finish_reason: string;
+    message: {
+      role: string;
+      content: string;
+    };
+  }>;
+  citations?: string[];
 }
 
 export async function POST(req: NextRequest) {
@@ -33,16 +38,29 @@ export async function POST(req: NextRequest) {
       }
 
       const query = searchKeywords[0]; // Use the first keyword
-      const response = await fetch('https://api.perplexity.ai/search', {
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query,
-          max_results: input.maxPostsPerKeyword || 10,
-          highlight: true,
+          model: "sonar-pro",
+          messages: [
+            {
+              role: "system",
+              content: "You are a search assistant. Please search the web and provide relevant information about the query. Format your response in a clear, concise way with sections and bullet points when appropriate."
+            },
+            {
+              role: "user",
+              content: query
+            }
+          ],
+          max_tokens: 2048,
+          temperature: 0.7,
+          web_search_options: {
+            search_context_size: "high"
+          }
         }),
       });
 
@@ -56,25 +74,26 @@ export async function POST(req: NextRequest) {
         throw new Error(`Failed to call Perplexity API: ${response.statusText}`);
       }
 
-      const searchData = await response.json();
+      const searchData: PerplexityResult = await response.json();
       
-      if (!searchData.results || !Array.isArray(searchData.results)) {
+      if (!searchData.choices || !Array.isArray(searchData.choices)) {
         return NextResponse.json([]);
       }
 
       // Transform Perplexity results to match expected format
-      const results = searchData.results.map((result: PerplexityResult) => ({
-        title: result.title,
-        desc: result.snippet || result.text,
-        url: result.url,
-        noteUrl: result.url,
-        content: result.text,
-        postedAt: result.published_date || new Date().toISOString(),
-        authorName: result.source || new URL(result.url).hostname,
+      const results = [{
+        title: query,
+        desc: searchData.choices[0]?.message?.content || '',
+        url: searchData.citations?.[0] || '',
+        noteUrl: searchData.citations?.[0] || '',
+        content: searchData.choices[0]?.message?.content || '',
+        postedAt: new Date().toISOString(),
+        authorName: 'Perplexity AI',
         likes: 0,
         views: 0,
-        images: []
-      }));
+        images: [],
+        citations: searchData.citations || []
+      }];
 
       return NextResponse.json(results);
     }
