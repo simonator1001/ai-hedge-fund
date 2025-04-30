@@ -14,6 +14,37 @@ interface PerplexityResult {
   citations?: string[];
 }
 
+interface NewsArticle {
+  id: string;
+  category: string;
+  headline: string;
+  summary: string;
+  content: string;
+  publishedAt: string;
+  author: {
+    name: string;
+    avatar?: string;
+  };
+  metadata: {
+    readTime: string;
+    analysisType: string;
+    confidence: string;
+    dataProvider: string;
+    researchCategory: string;
+  };
+  stats: {
+    views: number;
+    likes: number;
+    shares: number;
+  };
+  relatedLinks: Array<{
+    title: string;
+    url: string;
+  }>;
+  sources: string[];
+  tags: string[];
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { tool, input } = await req.json();
@@ -51,16 +82,18 @@ export async function POST(req: NextRequest) {
               role: "system",
               content: `You are an AI investment research analyst. Analyze the provided information and present it in a professional, structured format suitable for investors and financial professionals. Follow these guidelines:
 
-1. Start with an "Executive Summary" section highlighting key points
-2. Include a "Market Impact" section discussing potential market implications
-3. Break down complex information into clear, labeled sections
-4. Use bullet points for key findings and metrics
-5. Include a "Risk Factors" section when relevant
-6. End with "Sources & Citations" listing key references
-7. Format numbers and statistics professionally
-8. Use markdown formatting for better readability
-9. Include relevant dates and timestamps
-10. Highlight any time-sensitive information
+1. Start with a clear, concise headline
+2. Provide a brief executive summary (2-3 sentences)
+3. Break down the analysis into these sections:
+   - Key Highlights (bullet points)
+   - Market Impact
+   - Industry Analysis
+   - Risk Factors
+   - Future Outlook
+4. Use professional financial terminology
+5. Include specific dates, numbers, and metrics
+6. Cite sources and provide context
+7. Tag relevant sectors and themes
 
 Current analysis date: ${new Date().toISOString().split('T')[0]}`
             },
@@ -93,29 +126,42 @@ Current analysis date: ${new Date().toISOString().split('T')[0]}`
         return NextResponse.json([]);
       }
 
-      // Transform Perplexity results to match expected format
-      const results = [{
-        title: `Investment Analysis: ${query}`,
-        desc: searchData.choices[0]?.message?.content || '',
-        url: searchData.citations?.[0] || '',
-        noteUrl: searchData.citations?.[0] || '',
-        content: searchData.choices[0]?.message?.content || '',
-        postedAt: new Date().toISOString(),
-        authorName: '21.dev Research',
-        likes: 0,
-        views: 0,
-        images: [],
-        citations: searchData.citations || [],
+      const content = searchData.choices[0]?.message?.content || '';
+      const currentDate = new Date();
+
+      // Transform Perplexity results to match news app format
+      const article: NewsArticle = {
+        id: `article-${Date.now()}`,
+        category: 'Investment Research',
+        headline: `Investment Analysis: ${query}`,
+        summary: content.split('\n')[0] || '', // First line as summary
+        content: content,
+        publishedAt: currentDate.toISOString(),
+        author: {
+          name: '21.dev Research',
+          avatar: '/images/research-avatar.png'
+        },
         metadata: {
+          readTime: `${Math.ceil(content.split(' ').length / 200)} min read`,
           analysisType: 'Investment Research',
           confidence: 'High',
-          lastUpdated: new Date().toISOString(),
           dataProvider: 'Perplexity AI',
           researchCategory: 'Market Analysis'
-        }
-      }];
+        },
+        stats: {
+          views: 0,
+          likes: 0,
+          shares: 0
+        },
+        relatedLinks: searchData.citations?.map(citation => ({
+          title: new URL(citation).hostname,
+          url: citation
+        })) || [],
+        sources: searchData.citations || [],
+        tags: ['Investment', 'Market Analysis', query]
+      };
 
-      return NextResponse.json(results);
+      return NextResponse.json([article]);
     }
 
     // Handle other tools or return error for unsupported tools
