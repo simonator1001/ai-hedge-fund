@@ -9,7 +9,11 @@ export async function POST(req: NextRequest) {
     }
 
     // First, try to get news using RAG Web Browser
-    const searchResponse = await fetch('/api/mcp', {
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3001';  // Using 3001 since 3000 is taken
+
+    const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -27,7 +31,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (!searchResponse.ok) {
-      throw new Error('Failed to fetch search results');
+      console.error('Search response error:', await searchResponse.text());
+      throw new Error(`Failed to fetch search results: ${searchResponse.status} ${searchResponse.statusText}`);
     }
 
     const searchResults = await searchResponse.json();
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error in firecrawl route:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch news' },
+      { error: error instanceof Error ? error.message : 'Failed to fetch news' },
       { status: 500 }
     );
   }
