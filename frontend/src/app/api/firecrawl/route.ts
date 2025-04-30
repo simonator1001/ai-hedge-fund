@@ -8,6 +8,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
+    // Format the results in a way that matches the NewsItem interface
+    const formattedResults = [
+      {
+        title: "Test News",
+        description: "This is a test news item",
+        url: "https://example.com",
+        content: "This is test content to verify the data format",
+        publishedAt: new Date().toISOString()
+      }
+    ];
+
+    // Return formatted results for testing
+    return NextResponse.json(formattedResults);
+
+    /* Commented out for testing
     const searchResponse = await fetch('http://localhost:3000/api/mcp/firecrawl/search', {
       method: 'POST',
       headers: {
@@ -64,6 +79,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json(detailedResults);
+    */
   } catch (error) {
     console.error('Error in firecrawl route:', error);
     return NextResponse.json(

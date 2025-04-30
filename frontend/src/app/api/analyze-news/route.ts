@@ -10,10 +10,31 @@ export async function POST(req: NextRequest) {
     const { news, startDate, endDate, keywords } = await req.json();
 
     if (!news || !Array.isArray(news)) {
+      console.error('Invalid news format:', news);
       return NextResponse.json(
         { error: 'Invalid news data format' },
         { status: 400 }
       );
+    }
+
+    // For testing purposes, return mock analysis
+    if (process.env.NODE_ENV === 'development') {
+      const mockAnalysis = {
+        news: news.map((item: any) => ({
+          ...item,
+          sentiment: 'positive',
+          relevantStocks: ['AAPL', 'GOOGL']
+        })),
+        opportunities: [
+          {
+            ticker: 'AAPL',
+            confidence: 85,
+            reasons: ['Strong market position', 'Innovative products'],
+            newsReferences: [news[0]?.title || 'Test News']
+          }
+        ]
+      };
+      return NextResponse.json(mockAnalysis);
     }
 
     // Analyze news content using OpenAI
