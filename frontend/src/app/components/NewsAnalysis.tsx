@@ -4,8 +4,9 @@ interface NewsItem {
   title: string;
   description: string;
   url: string;
-  publishedAt: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
+  content?: string | null;
+  publishedAt?: string;
+  sentiment?: 'positive' | 'negative' | 'neutral';
   relevantStocks?: string[];
 }
 
@@ -41,31 +42,50 @@ export default function NewsAnalysis({
     setLoading(true);
     setError(null);
     try {
-      // Fetch news and analyze
-      const response = await fetch('/api/analyze-news', {
+      // First, get news using Firecrawl
+      const firecrawlResponse = await fetch('/api/firecrawl', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          query: `${keywords} date:${dateRange.start} to ${dateRange.end}`,
+          limit: 10,
+        }),
+      });
+
+      if (!firecrawlResponse.ok) {
+        throw new Error('Failed to fetch news');
+      }
+
+      const newsResults = await firecrawlResponse.json();
+      
+      // Then analyze the news for opportunities
+      const analysisResponse = await fetch('/api/analyze-news', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          news: newsResults,
           startDate: dateRange.start,
           endDate: dateRange.end,
           keywords,
         }),
       });
 
-      const data = await response.json();
+      const analysisData = await analysisResponse.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyze news');
+      if (!analysisResponse.ok) {
+        throw new Error(analysisData.error || 'Failed to analyze news');
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (analysisData.error) {
+        throw new Error(analysisData.error);
       }
       
-      setNews(data.news || []);
-      setOpportunities(data.opportunities || []);
+      setNews(newsResults);
+      setOpportunities(analysisData.opportunities || []);
     } catch (error) {
       console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'Failed to analyze news. Please try again.');
@@ -191,31 +211,43 @@ export default function NewsAnalysis({
           <div className="space-y-4">
             {news.map((item, index) => (
               <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
-                <h4 className="text-md font-medium text-white">{item.title}</h4>
+                <h4 className="text-md font-medium text-white">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
+                    {item.title}
+                  </a>
+                </h4>
                 <p className="mt-1 text-sm text-gray-300">{item.description}</p>
+                {item.content && (
+                  <div className="mt-2 text-sm text-gray-400 max-h-40 overflow-y-auto">
+                    {item.content}
+                  </div>
+                )}
                 <div className="mt-2 flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
-                      item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
-                      'bg-gray-700 text-gray-200'
-                    }`}>
-                      {item.sentiment}
-                    </span>
-                    {item.relevantStocks && (
-                      <span className="text-xs text-gray-400">
-                        Related: {item.relevantStocks.join(', ')}
+                    {item.sentiment && (
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
+                        item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
+                        'bg-gray-900 text-gray-200'
+                      }`}>
+                        {item.sentiment}
                       </span>
                     )}
+                    {item.relevantStocks && item.relevantStocks.length > 0 && (
+                      <div className="flex items-center space-x-1">
+                        {item.relevantStocks.map((stock, idx) => (
+                          <span key={idx} className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded">
+                            {stock}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
-                  >
-                    Read More →
-                  </a>
+                  {item.publishedAt && (
+                    <span className="text-xs text-gray-400">
+                      {new Date(item.publishedAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
