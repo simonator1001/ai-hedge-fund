@@ -1,54 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
-  try {
-    const { query } = await req.json();
-    console.log('Web search query:', query);
+export async function GET(request: NextRequest) {
+  const query = request.nextUrl.searchParams.get('query');
+  
+  if (!query) {
+    return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
+  }
 
-    // Call mcp_google_search_search directly
-    const searchResponse = await fetch('https://api.cursor.sh/api/v1/tools/call', {
+  console.log('Web search query:', query);
+
+  try {
+    if (!process.env.PERPLEXITY_API_KEY) {
+      throw new Error('PERPLEXITY_API_KEY is not configured');
+    }
+
+    const response = await fetch('https://api.perplexity.ai/search', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.CURSOR_API_KEY}`
       },
       body: JSON.stringify({
-        tool: 'mcp_google_search_search',
-        args: {
-          query: query,
-          num: 10
-        }
+        query,
+        max_results: 10,
+        highlight: true,
       }),
     });
 
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error('Google Search API error:', {
-        status: searchResponse.status,
-        statusText: searchResponse.statusText,
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Perplexity API error:', {
+        status: response.status,
+        statusText: response.statusText,
         error: errorText
       });
-      throw new Error(`Failed to fetch search results: ${searchResponse.status} ${searchResponse.statusText}`);
+      throw new Error(`Failed to fetch search results: ${response.status} ${response.statusText}`);
     }
 
-    const searchData = await searchResponse.json();
+    const searchData = await response.json();
     console.log('Search results:', searchData);
 
-    if (!searchData.items || !Array.isArray(searchData.items)) {
+    if (!searchData.results || !Array.isArray(searchData.results)) {
       console.warn('No search results found or invalid response format');
-      return NextResponse.json([]);
+      return NextResponse.json({ articles: [] });
     }
 
-    // Transform the results into a more usable format
-    const articles = searchData.items.map((result: any) => ({
-      title: result.title || '',
-      description: result.snippet || '',
-      url: result.link || '',
-      publishedAt: new Date().toISOString(), // Google doesn't provide publish dates
-      content: result.snippet || '',
+    const articles = searchData.results.map((result: any) => ({
+      title: result.title,
+      link: result.url,
+      snippet: result.snippet || result.text,
+      source: result.source || new URL(result.url).hostname,
+      date: result.published_date || null
     }));
 
-    return NextResponse.json(articles);
+    return NextResponse.json({ articles });
+
   } catch (error) {
     console.error('Error in web search:', error);
     return NextResponse.json(

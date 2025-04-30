@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const host = req.headers.get('host') || 'localhost:3001';
     const baseUrl = `${protocol}://${host}`;
 
-    // Call the MCP endpoint with Xiaohongshu scraper
+    // Call the MCP endpoint with search query
     const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
       method: 'POST',
       headers: {
@@ -24,10 +24,7 @@ export async function POST(req: NextRequest) {
         input: {
           searchKeywords: [query],
           maxPostsPerKeyword: limit,
-          scrapeComments: false,
-          proxyConfiguration: {
-            useApifyProxy: true
-          }
+          scrapeComments: false
         }
       }),
     });
@@ -44,14 +41,13 @@ export async function POST(req: NextRequest) {
 
     const searchResults = await searchResponse.json();
     
-    // Transform the Xiaohongshu results to match our NewsItem interface
+    // Transform the results to match our NewsItem interface
     const formattedResults = Array.isArray(searchResults) ? searchResults.map((result: any) => ({
       title: result.title || result.desc || 'Untitled',
       description: result.desc || '',
       url: result.url || result.noteUrl,
       content: result.content || result.desc,
       publishedAt: result.postedAt || new Date().toISOString(),
-      // Additional Xiaohongshu specific fields
       author: result.authorName,
       likes: result.likes,
       views: result.views,
