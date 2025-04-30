@@ -1,38 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(req: NextRequest): Promise<NextResponse> {
+export async function POST(req: NextRequest) {
   try {
-    const { query, num = 10 } = await req.json();
-    console.log('Google search query:', query);
+    const { query, num = 5 } = await req.json();
 
-    // Use the mcp_google_search_search tool
-    const response = await fetch('http://localhost:3000/api/mcp/google-search', {
+    if (!query) {
+      return NextResponse.json({ error: 'Query is required' }, { status: 400 });
+    }
+
+    // Add news-specific terms to the query
+    const newsQuery = `${query} news articles`;
+
+    // Call the MCP Google Search tool
+    const response = await fetch('/api/mcp', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query,
-        num
+        tool: 'google-search',
+        input: {
+          query: newsQuery,
+          num: num
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('MCP Google Search error:', {
+      console.error('Google Search error:', {
         status: response.status,
         statusText: response.statusText,
         error: errorText
       });
-      throw new Error(`Failed to fetch search results: ${response.status} ${response.statusText}`);
+      throw new Error('Failed to fetch search results');
     }
 
     const results = await response.json();
     return NextResponse.json(results);
+
   } catch (error) {
-    console.error('Error in Google search:', error);
+    console.error('Error in google-search route:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to search Google' },
+      { error: error instanceof Error ? error.message : 'Failed to search' },
       { status: 500 }
     );
   }

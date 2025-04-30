@@ -18,18 +18,15 @@ export async function POST(req: NextRequest) {
 
     // Convert tool name format from ~ to / for Apify API
     const actorId = tool.replace('~', '/');
-    console.log('Calling Apify with actor:', actorId);
+    console.log('Calling Apify with actor:', actorId, 'and input:', input);
 
-    // Call the RAG Web Browser Actor
+    // Call the Apify Actor
     const response = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${process.env.APIFY_API_KEY}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...input,
-        proxyConfiguration: { useApifyProxy: true }
-      }),
+      body: JSON.stringify(input),
     });
 
     if (!response.ok) {

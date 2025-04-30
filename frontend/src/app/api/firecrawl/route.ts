@@ -13,20 +13,21 @@ export async function POST(req: NextRequest) {
     const host = req.headers.get('host') || 'localhost:3001';
     const baseUrl = `${protocol}://${host}`;
 
-    // Call the MCP endpoint with absolute URL
+    // Call the MCP endpoint with Xiaohongshu scraper
     const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        tool: 'apify~rag-web-browser',
+        tool: 'easyapi~all-in-one-rednote-xiaohongshu-scraper',
         input: {
-          query: query,
-          maxResults: limit,
-          outputFormats: ['markdown'],
-          removeCookieWarnings: true,
-          htmlTransformer: 'readable'
+          searchKeywords: [query],
+          maxPostsPerKeyword: limit,
+          scrapeComments: false,
+          proxyConfiguration: {
+            useApifyProxy: true
+          }
         }
       }),
     });
@@ -43,13 +44,18 @@ export async function POST(req: NextRequest) {
 
     const searchResults = await searchResponse.json();
     
-    // Transform the results to match our NewsItem interface
+    // Transform the Xiaohongshu results to match our NewsItem interface
     const formattedResults = Array.isArray(searchResults) ? searchResults.map((result: any) => ({
-      title: result.title || result.metadata?.title || 'Untitled',
-      description: result.description || result.metadata?.description || result.snippet || '',
-      url: result.url || result.metadata?.url,
-      content: result.markdown || result.content,
-      publishedAt: new Date().toISOString() // Since RAG Web Browser doesn't provide dates
+      title: result.title || result.desc || 'Untitled',
+      description: result.desc || '',
+      url: result.url || result.noteUrl,
+      content: result.content || result.desc,
+      publishedAt: result.postedAt || new Date().toISOString(),
+      // Additional Xiaohongshu specific fields
+      author: result.authorName,
+      likes: result.likes,
+      views: result.views,
+      images: result.images
     })) : [];
 
     return NextResponse.json(formattedResults);
