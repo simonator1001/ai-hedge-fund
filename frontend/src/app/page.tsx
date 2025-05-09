@@ -15,19 +15,30 @@ const ANALYSTS = [
   { label: 'Stanley Druckenmiller', value: 'stanley_druckenmiller' },
   { label: 'Warren Buffett', value: 'warren_buffett' },
 ];
-const MODELS = [
-  { label: 'GPT-4o (OpenAI)', value: 'gpt-4o', provider: 'OpenAI' },
-  { label: 'DeepSeek (Groq)', value: 'deepseek-reasoner', provider: 'Groq' },
-  { label: 'Llama 3 (Ollama)', value: 'llama3', provider: 'Ollama' },
+const PROVIDERS = [
+  { label: 'OpenAI', value: 'OpenAI' },
+  { label: 'Groq', value: 'Groq' },
+  { label: 'Ollama', value: 'Ollama' },
 ];
+const MODELS_BY_PROVIDER: Record<string, { label: string; value: string }[]> = {
+  OpenAI: [
+    { label: 'GPT-4o', value: 'gpt-4o' },
+  ],
+  Groq: [
+    { label: 'DeepSeek', value: 'deepseek-reasoner' },
+  ],
+  Ollama: [
+    { label: 'Llama 3', value: 'llama3' },
+  ],
+};
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [showSimulation, setShowSimulation] = useState(false);
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['ben_graham']);
-  const [modelChoice, setModelChoice] = useState<string>('gpt-4o');
   const [modelProvider, setModelProvider] = useState<string>('OpenAI');
+  const [modelChoice, setModelChoice] = useState<string>(MODELS_BY_PROVIDER['OpenAI'][0].value);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -152,17 +163,30 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-200 mb-2">Select LLM Model</label>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Select LLM Provider</label>
               <select
-                value={modelChoice}
+                value={modelProvider}
                 onChange={e => {
-                  const selected = MODELS.find(m => m.value === e.target.value);
-                  setModelChoice(selected?.value || 'gpt-4o');
-                  setModelProvider(selected?.provider || 'OpenAI');
+                  const provider = e.target.value;
+                  setModelProvider(provider);
+                  // Set model to first available for new provider
+                  setModelChoice(MODELS_BY_PROVIDER[provider][0].value);
                 }}
                 className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
               >
-                {MODELS.map(m => (
+                {PROVIDERS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Select LLM Model</label>
+              <select
+                value={modelChoice}
+                onChange={e => setModelChoice(e.target.value)}
+                className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                {MODELS_BY_PROVIDER[modelProvider].map(m => (
                   <option key={m.value} value={m.value}>{m.label}</option>
                 ))}
               </select>
