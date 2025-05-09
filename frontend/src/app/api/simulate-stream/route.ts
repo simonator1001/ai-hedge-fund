@@ -13,11 +13,16 @@ export async function GET(req: NextRequest) {
   const modelProvider = url.searchParams.get('modelProvider');
   const showReasoning = url.searchParams.get('showReasoning') === 'true';
 
+  // Generate unique Excel output filename
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const outputFile = `${timestamp}-simulation.xlsx`;
+
   const args = [
     '../src/main.py',
     '--tickers', tickers!,
     '--start-date', startDate!,
     '--end-date', endDate!,
+    '--excel-output', outputFile,
   ];
   if (selectedAnalysts) args.push('--selected-analysts', selectedAnalysts);
   if (modelChoice) args.push('--model-choice', modelChoice);
