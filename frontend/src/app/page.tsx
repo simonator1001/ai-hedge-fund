@@ -85,6 +85,14 @@ export default function Home() {
       setLoading(false);
       es.close();
     });
+    es.addEventListener('result', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.outputFile) {
+          setResult(data.outputFile);
+        }
+      } catch {}
+    });
   };
 
   const handleStockSelect = (tickers: string[]) => {

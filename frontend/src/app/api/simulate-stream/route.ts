@@ -37,6 +37,10 @@ export async function GET(req: NextRequest) {
             const payload = line.replace('PROGRESS:', '');
             controller.enqueue(encoder.encode(`event: progress\ndata: ${payload}\n\n`));
           }
+          if (line.startsWith('RESULT:')) {
+            const payload = line.replace('RESULT:', '');
+            controller.enqueue(encoder.encode(`event: result\ndata: ${payload}\n\n`));
+          }
         }
       });
       simulation.on('close', (code) => {
