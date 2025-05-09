@@ -33,8 +33,8 @@ const MODELS_BY_PROVIDER: Record<string, { label: string; value: string }[]> = {
     { label: 'Llama 3', value: 'llama3' },
   ],
   DeepSeek: [
-    { label: 'DeepSeek V2', value: 'deepseek-v2' },
-    { label: 'DeepSeek MoE', value: 'deepseek-moe' },
+    { label: 'DeepSeek Reasoner', value: 'deepseek-reasoner' },
+    { label: 'DeepSeek Chat', value: 'deepseek-chat' },
   ],
 };
 
