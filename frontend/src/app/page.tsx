@@ -41,6 +41,7 @@ const MODELS_BY_PROVIDER: Record<string, { label: string; value: string }[]> = {
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [resultData, setResultData] = useState<any>(null);
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['ben_graham']);
   const [modelProvider, setModelProvider] = useState<string>('OpenAI');
   const [modelChoice, setModelChoice] = useState<string>(MODELS_BY_PROVIDER['OpenAI'][0].value);
@@ -90,6 +91,9 @@ export default function Home() {
         const data = JSON.parse(event.data);
         if (data.outputFile) {
           setResult(data.outputFile);
+        }
+        if (data.resultJson) {
+          setResultData(data.resultJson);
         }
       } catch {}
     });
@@ -244,15 +248,21 @@ export default function Home() {
         </form>
       </div>
 
+      {resultData && (
+        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
+          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results (Preview)</h2>
+          <pre className="text-gray-200 text-xs whitespace-pre-wrap max-h-96 overflow-auto bg-gray-900 p-4 rounded-lg border border-gray-700">
+            {JSON.stringify(resultData, null, 2)}
+          </pre>
+        </div>
+      )}
       {result && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results</h2>
-          <p className="text-gray-200">
-            Your simulation results are ready! Download them here:
-          </p>
+          <h2 className="text-xl font-semibold text-white mb-4">Download Simulation Results</h2>
           <a
             href={`/api/download/${result}`}
             className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            download
           >
             Download Excel Report
           </a>
