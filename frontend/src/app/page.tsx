@@ -44,14 +44,15 @@ export default function Home() {
   const [result, setResult] = useState<string | null>(null);
   const [resultData, setResultData] = useState<any>(null);
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['ben_graham']);
-  const [modelProvider, setModelProvider] = useState<string>('OpenAI');
-  const [modelChoice, setModelChoice] = useState<string>(MODELS_BY_PROVIDER['OpenAI'][0].value);
+  const [modelProvider, setModelProvider] = useState<string>('DeepSeek');
+  const [modelChoice, setModelChoice] = useState<string>(MODELS_BY_PROVIDER['DeepSeek'][0].value);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState('confidence');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [showReasoning, setShowReasoning] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ export default function Home() {
       selectedAnalysts: selectedAnalysts.join(','),
       modelChoice,
       modelProvider,
-      showReasoning: formData.get('showReasoning') === 'true' ? 'true' : 'false',
+      showReasoning: showReasoning ? 'true' : 'false',
     });
     const es = new EventSource(`/api/simulate-stream?${params.toString()}`);
     es.addEventListener('progress', (event: MessageEvent) => {
@@ -266,6 +267,8 @@ export default function Home() {
               id="showReasoning"
               value="true"
               className="h-4 w-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 bg-gray-700"
+              checked={showReasoning}
+              onChange={e => setShowReasoning(e.target.checked)}
             />
             <label htmlFor="showReasoning" className="ml-2 block text-sm text-gray-200">
               Show AI Reasoning
