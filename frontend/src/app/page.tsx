@@ -15,6 +15,10 @@ const ANALYSTS = [
   { label: 'Phil Fisher', value: 'phil_fisher' },
   { label: 'Stanley Druckenmiller', value: 'stanley_druckenmiller' },
   { label: 'Warren Buffett', value: 'warren_buffett' },
+  { label: 'Technical Analyst', value: 'technical_analyst' },
+  { label: 'Fundamentals Analyst', value: 'fundamentals_analyst' },
+  { label: 'Sentiment Analyst', value: 'sentiment_analyst' },
+  { label: 'Valuation Analyst', value: 'valuation_analyst' },
 ];
 const PROVIDERS = [
   { label: 'OpenAI', value: 'OpenAI' },
