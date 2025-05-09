@@ -54,49 +54,37 @@ export default function Home() {
     setResult(null);
     setProgress(0);
     setStatus('Running simulation...');
-    // Animate progress bar up to 90%
     if (progressInterval.current) clearInterval(progressInterval.current);
-    progressInterval.current = setInterval(() => {
-      setProgress(prev => {
-        if (prev < 90) return prev + 1;
-        return prev;
-      });
-    }, 100);
+
+    // Build query string for SSE
     const formData = new FormData(e.currentTarget);
-    const data = {
-      tickers: formData.get('tickers')?.toString().split(',').map(t => t.trim()),
-      startDate: formData.get('startDate'),
-      endDate: formData.get('endDate'),
-      showReasoning: formData.get('showReasoning') === 'true',
-      selectedAnalysts,
+    const params = new URLSearchParams({
+      tickers: formData.get('tickers')?.toString() || '',
+      startDate: formData.get('startDate')?.toString() || '',
+      endDate: formData.get('endDate')?.toString() || '',
+      selectedAnalysts: selectedAnalysts.join(','),
       modelChoice,
       modelProvider,
-    };
-    try {
-      const response = await fetch('/api/simulate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      setStatus('Generating report...');
-      if (!response.ok) {
-        throw new Error('Simulation failed');
-      }
-      const result = await response.json();
-      setResult(result.outputFile);
-      setProgress(100);
-      setStatus('Simulation complete!');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Failed to run simulation. Please try again.');
+      showReasoning: formData.get('showReasoning') === 'true' ? 'true' : 'false',
+    });
+    const es = new EventSource(`/api/simulate-stream?${params.toString()}`);
+    es.addEventListener('progress', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        setProgress(data.percent);
+        setStatus(data.status);
+        if (data.percent === 100) {
+          es.close();
+          setLoading(false);
+        }
+      } catch {}
+    });
+    es.addEventListener('error', (event: MessageEvent) => {
       setStatus('Simulation failed.');
       setProgress(0);
-    } finally {
       setLoading(false);
-      if (progressInterval.current) clearInterval(progressInterval.current);
-    }
+      es.close();
+    });
   };
 
   const handleStockSelect = (tickers: string[]) => {
