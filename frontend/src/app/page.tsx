@@ -4,23 +4,44 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import NewsAnalysis from './components/NewsAnalysis';
 
+const ANALYSTS = [
+  { label: 'Ben Graham', value: 'ben_graham' },
+  { label: 'Bill Ackman', value: 'bill_ackman' },
+  { label: 'Cathie Wood', value: 'cathie_wood' },
+  { label: 'Charlie Munger', value: 'charlie_munger' },
+  { label: 'Michael Burry', value: 'michael_burry' },
+  { label: 'Peter Lynch', value: 'peter_lynch' },
+  { label: 'Phil Fisher', value: 'phil_fisher' },
+  { label: 'Stanley Druckenmiller', value: 'stanley_druckenmiller' },
+  { label: 'Warren Buffett', value: 'warren_buffett' },
+];
+const MODELS = [
+  { label: 'GPT-4o (OpenAI)', value: 'gpt-4o', provider: 'OpenAI' },
+  { label: 'DeepSeek (Groq)', value: 'deepseek-reasoner', provider: 'Groq' },
+  { label: 'Llama 3 (Ollama)', value: 'llama3', provider: 'Ollama' },
+];
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [showSimulation, setShowSimulation] = useState(false);
+  const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['ben_graham']);
+  const [modelChoice, setModelChoice] = useState<string>('gpt-4o');
+  const [modelProvider, setModelProvider] = useState<string>('OpenAI');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    
     const formData = new FormData(e.currentTarget);
     const data = {
       tickers: formData.get('tickers')?.toString().split(',').map(t => t.trim()),
       startDate: formData.get('startDate'),
       endDate: formData.get('endDate'),
       showReasoning: formData.get('showReasoning') === 'true',
+      selectedAnalysts,
+      modelChoice,
+      modelProvider,
     };
-
     try {
       const response = await fetch('/api/simulate', {
         method: 'POST',
@@ -29,11 +50,9 @@ export default function Home() {
         },
         body: JSON.stringify(data),
       });
-
       if (!response.ok) {
         throw new Error('Simulation failed');
       }
-
       const result = await response.json();
       setResult(result.outputFile);
     } catch (error) {
@@ -107,6 +126,46 @@ export default function Home() {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Select AI Analysts</label>
+              <div className="flex flex-wrap gap-2">
+                {ANALYSTS.map(a => (
+                  <label key={a.value} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedAnalysts.includes(a.value)}
+                      onChange={e => {
+                        if (e.target.checked) {
+                          setSelectedAnalysts(prev => [...prev, a.value]);
+                        } else {
+                          setSelectedAnalysts(prev => prev.filter(v => v !== a.value));
+                        }
+                      }}
+                      className="form-checkbox h-4 w-4 text-indigo-600"
+                    />
+                    <span className="text-gray-200 text-sm">{a.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-2">Select LLM Model</label>
+              <select
+                value={modelChoice}
+                onChange={e => {
+                  const selected = MODELS.find(m => m.value === e.target.value);
+                  setModelChoice(selected?.value || 'gpt-4o');
+                  setModelProvider(selected?.provider || 'OpenAI');
+                }}
+                className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              >
+                {MODELS.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
             </div>
 
             <div className="flex items-center">

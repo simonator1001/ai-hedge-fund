@@ -4,7 +4,7 @@ import path from 'path';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const { tickers, startDate, endDate, showReasoning } = await req.json();
+    const { tickers, startDate, endDate, showReasoning, selectedAnalysts, modelChoice, modelProvider } = await req.json();
 
     // Validate input
     if (!tickers || !startDate || !endDate) {
@@ -33,6 +33,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     if (showReasoning) {
       args.push('--show-reasoning');
+    }
+    if (selectedAnalysts && selectedAnalysts.length > 0) {
+      args.push('--selected-analysts', selectedAnalysts.join(','));
+    }
+    if (modelChoice) {
+      args.push('--model-choice', modelChoice);
+    }
+    if (modelProvider) {
+      args.push('--model-provider', modelProvider);
     }
 
     // Run the simulation
