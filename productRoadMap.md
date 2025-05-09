@@ -29,6 +29,17 @@
 
 ## Planned Features (In Progress)
 
+### Highest Priority Feature Requests
+1. 🔄 **[Top Priority] Plot stock price chart for the app being analyzed**
+   - Display interactive price charts for selected stocks within the app interface.
+   - Allow users to visualize historical price movements and trends.
+   - Integrate with existing simulation and analysis workflows.
+2. 🔄 **[Top Priority] Enhanced news research and multi-source analysis**
+   - Search and aggregate news from multiple engines and sources (e.g., Google, Bing, Exa, social media, TikTok, Instagram, etc.).
+   - Allow user to input keywords or use recent top news.
+   - Feed aggregated news to LLM for summarization, segment suggestions, and stock recommendations.
+   - Automatically pass relevant stocks to the AI Hedge Fund bot for deeper analysis.
+
 ### Enhanced Trading Capabilities
 - 🔄 Advanced portfolio optimization algorithms
 - 🔄 Machine learning-based market prediction
@@ -56,6 +67,8 @@
 ## Future Enhancements (Planned)
 
 ### Advanced Features
+- 📅 Add support for Hong Kong (HK) stocks
+- 📅 Add other investment tool analysis such as commodities and crypto
 - 📅 Multi-asset class support (crypto, forex, commodities)
 - 📅 Social trading features
 - 📅 AI-powered market research assistant
