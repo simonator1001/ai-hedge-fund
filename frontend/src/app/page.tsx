@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import NewsAnalysis from './components/NewsAnalysis';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
 
 const ANALYSTS = [
   { label: 'Ben Graham', value: 'ben_graham' },
@@ -48,6 +49,9 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const [filter, setFilter] = useState('');
+  const [sortKey, setSortKey] = useState('confidence');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -108,6 +112,36 @@ export default function Home() {
       }
     }
   };
+
+  // Helper to extract table data from resultData.decisions
+  const getTableRows = () => {
+    if (!resultData || !resultData.decisions) return [];
+    return Object.entries(resultData.decisions).map(([ticker, d]) => {
+      const decision = d as any;
+      return {
+        ticker,
+        action: decision.action,
+        quantity: decision.quantity,
+        confidence: decision.confidence,
+        reasoning: decision.reasoning,
+      };
+    });
+  };
+  const rows = getTableRows()
+    .filter(row =>
+      filter === '' ||
+      row.ticker.toLowerCase().includes(filter.toLowerCase()) ||
+      row.action.toLowerCase().includes(filter.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortKey === 'confidence') {
+        return sortDir === 'asc' ? a.confidence - b.confidence : b.confidence - a.confidence;
+      }
+      if (sortKey === 'ticker') {
+        return sortDir === 'asc' ? a.ticker.localeCompare(b.ticker) : b.ticker.localeCompare(a.ticker);
+      }
+      return 0;
+    });
 
   return (
     <div className="space-y-8">
@@ -250,14 +284,56 @@ export default function Home() {
 
       {resultData && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results (Preview)</h2>
-          <pre className="text-gray-200 text-xs whitespace-pre-wrap max-h-96 overflow-auto bg-gray-900 p-4 rounded-lg border border-gray-700">
-            {JSON.stringify(resultData, null, 2)}
-          </pre>
+          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results</h2>
+          <div className="flex gap-4 mb-4">
+            <input
+              type="text"
+              placeholder="Filter by ticker or action..."
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="px-2 py-1 rounded bg-gray-800 text-white border border-gray-600"
+            />
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value)}
+              className="px-2 py-1 rounded bg-gray-800 text-white border border-gray-600"
+            >
+              <option value="confidence">Sort by Confidence</option>
+              <option value="ticker">Sort by Ticker</option>
+            </select>
+            <button
+              onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}
+              className="px-2 py-1 rounded bg-gray-800 text-white border border-gray-600"
+            >
+              {sortDir === 'asc' ? 'Asc' : 'Desc'}
+            </button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Ticker</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Confidence</TableHead>
+                <TableHead>Reasoning</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={row.ticker} className="hover:bg-gray-800 cursor-pointer">
+                  <TableCell>{row.ticker}</TableCell>
+                  <TableCell>{row.action}</TableCell>
+                  <TableCell>{row.quantity}</TableCell>
+                  <TableCell>{row.confidence}%</TableCell>
+                  <TableCell className="max-w-xs whitespace-pre-wrap">{row.reasoning}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
       {result && (
-        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
+        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
           <h2 className="text-xl font-semibold text-white mb-4">Download Simulation Results</h2>
           <a
             href={`/api/download/${result}`}
