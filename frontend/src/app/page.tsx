@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import NewsAnalysis from './components/NewsAnalysis';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
+import StockPriceChart from './components/StockPriceChart';
 
 const ANALYSTS = [
   { label: 'Ben Graham', value: 'ben_graham' },
@@ -57,6 +58,9 @@ export default function Home() {
   const [sortKey, setSortKey] = useState('confidence');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showReasoning, setShowReasoning] = useState(true);
+  const [chartTicker, setChartTicker] = useState<string | null>(null);
+  const [chartStart, setChartStart] = useState<string | null>(null);
+  const [chartEnd, setChartEnd] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -68,10 +72,16 @@ export default function Home() {
 
     // Build query string for SSE
     const formData = new FormData(e.currentTarget);
+    const tickers = formData.get('tickers')?.toString() || '';
+    const startDate = formData.get('startDate')?.toString() || '';
+    const endDate = formData.get('endDate')?.toString() || '';
+    setChartTicker(tickers.split(',')[0]?.trim() || null);
+    setChartStart(startDate);
+    setChartEnd(endDate);
     const params = new URLSearchParams({
-      tickers: formData.get('tickers')?.toString() || '',
-      startDate: formData.get('startDate')?.toString() || '',
-      endDate: formData.get('endDate')?.toString() || '',
+      tickers: tickers,
+      startDate: startDate,
+      endDate: endDate,
       selectedAnalysts: selectedAnalysts.join(','),
       modelChoice,
       modelProvider,
@@ -349,6 +359,12 @@ export default function Home() {
           >
             Download Excel Report
           </a>
+        </div>
+      )}
+
+      {chartTicker && chartStart && chartEnd && (
+        <div className="mt-8">
+          <StockPriceChart ticker={chartTicker} start={chartStart} end={chartEnd} />
         </div>
       )}
     </div>
