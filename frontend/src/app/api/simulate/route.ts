@@ -22,7 +22,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const outputFile = `${timestamp}-simulation.xlsx`;
 
     // Construct command and arguments
-    const pythonScript = path.join(process.cwd(), '../../src/main.py');
+    const pythonScript = path.join(process.cwd(), '../src/main.py');
     const args = [
       pythonScript,
       '--tickers', tickerString,
