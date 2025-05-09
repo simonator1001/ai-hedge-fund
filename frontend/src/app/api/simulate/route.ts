@@ -37,7 +37,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // Run the simulation
     const simulation = spawn('poetry', ['run', 'python', ...args], {
-      cwd: path.join(process.cwd(), '../..'),
+      cwd: process.cwd(),
     });
 
     return new Promise<NextResponse>((resolve) => {
