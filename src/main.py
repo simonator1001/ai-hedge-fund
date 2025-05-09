@@ -25,6 +25,18 @@ load_dotenv()
 
 init(autoreset=True)
 
+# For SSE: emit progress as lines like PROGRESS:{"percent": 30, "status": "..."}
+_sse_progress_percent = 0
+def sse_progress_callback(agent_name, ticker, status):
+    global _sse_progress_percent
+    # For demo: increment by 7% per update, cap at 97%
+    _sse_progress_percent = min(_sse_progress_percent + 7, 97)
+    msg = status
+    if ticker:
+        msg = f"{agent_name.replace('_agent','').title()} [{ticker}]: {status}"
+    print(f"PROGRESS:{{\"percent\": {_sse_progress_percent}, \"status\": \"{msg}\"}}", flush=True)
+
+progress.on_update = sse_progress_callback
 
 def parse_hedge_fund_response(response):
     """Parses a JSON string and returns a dictionary."""
@@ -166,68 +178,47 @@ if __name__ == "__main__":
         type=str,
         help="Export results to Excel file (e.g., 'trading_results.xlsx')"
     )
+    parser.add_argument("--selected-analysts", type=str, help="Comma-separated list of analysts (e.g., ben_graham,charlie_munger)")
+    parser.add_argument("--model-choice", type=str, help="LLM model name (e.g., gpt-4o)")
+    parser.add_argument("--model-provider", type=str, help="LLM provider (e.g., OpenAI, Groq, Ollama)")
 
     args = parser.parse_args()
 
     # Parse tickers from comma-separated string
     tickers = [ticker.strip() for ticker in args.tickers.split(",")]
 
-    # Select analysts
-    selected_analysts = None
-    choices = questionary.checkbox(
-        "Select your AI analysts.",
-        choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
-        instruction="\n\nInstructions: \n1. Press Space to select/unselect analysts.\n2. Press 'a' to select/unselect all.\n3. Press Enter when done to run the hedge fund.\n",
-        validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
-        style=questionary.Style(
-            [
+    # Analyst selection logic
+    if args.selected_analysts:
+        selected_analysts = [a.strip() for a in args.selected_analysts.split(",")]
+    elif sys.stdin.isatty():
+        choices = questionary.checkbox(
+            "Select your AI analysts.",
+            choices=[questionary.Choice(display, value=value) for display, value in ANALYST_ORDER],
+            instruction="\n\nInstructions: \n1. Press Space to select/unselect analysts.\n2. Press 'a' to select/unselect all.\n3. Press Enter when done to run the hedge fund.\n",
+            validate=lambda x: len(x) > 0 or "You must select at least one analyst.",
+            style=questionary.Style([
                 ("checkbox-selected", "fg:green"),
                 ("selected", "fg:green noinherit"),
                 ("highlighted", "noinherit"),
                 ("pointer", "noinherit"),
-            ]
-        ),
-    ).ask()
-
-    if not choices:
-        print("\n\nInterrupt received. Exiting...")
-        sys.exit(0)
-    else:
-        selected_analysts = choices
-        print(f"\nSelected analysts: {', '.join(Fore.GREEN + choice.title().replace('_', ' ') + Style.RESET_ALL for choice in choices)}\n")
-
-    # Select LLM model based on whether Ollama is being used
-    model_choice = None
-    model_provider = None
-    
-    if args.ollama:
-        print(f"{Fore.CYAN}Using Ollama for local LLM inference.{Style.RESET_ALL}")
-        
-        # Select from Ollama-specific models
-        model_choice = questionary.select(
-            "Select your Ollama model:",
-            choices=[questionary.Choice(display, value=value) for display, value, _ in OLLAMA_LLM_ORDER],
-            style=questionary.Style([
-                ("selected", "fg:green bold"),
-                ("pointer", "fg:green bold"),
-                ("highlighted", "fg:green"),
-                ("answer", "fg:green bold"),
-            ])
+            ]),
         ).ask()
-        
-        if not model_choice:
+        if not choices:
             print("\n\nInterrupt received. Exiting...")
             sys.exit(0)
-        
-        # Ensure Ollama is installed, running, and the model is available
-        if not ensure_ollama_and_model(model_choice):
-            print(f"{Fore.RED}Cannot proceed without Ollama and the selected model.{Style.RESET_ALL}")
-            sys.exit(1)
-        
-        model_provider = ModelProvider.OLLAMA.value
-        print(f"\nSelected {Fore.CYAN}Ollama{Style.RESET_ALL} model: {Fore.GREEN + Style.BRIGHT}{model_choice}{Style.RESET_ALL}\n")
+        selected_analysts = choices
     else:
-        # Use the standard cloud-based LLM selection
+        selected_analysts = ["ben_graham"]  # default
+
+    # LLM model selection logic
+    if args.model_choice:
+        model_choice = args.model_choice
+        if args.model_provider:
+            model_provider = args.model_provider
+        else:
+            model_info = get_model_info(model_choice)
+            model_provider = model_info.provider.value if model_info else "OpenAI"
+    elif sys.stdin.isatty():
         model_choice = questionary.select(
             "Select your LLM model:",
             choices=[questionary.Choice(display, value=value) for display, value, _ in LLM_ORDER],
@@ -236,21 +227,16 @@ if __name__ == "__main__":
                 ("pointer", "fg:green bold"),
                 ("highlighted", "fg:green"),
                 ("answer", "fg:green bold"),
-            ])
+            ]),
         ).ask()
-
         if not model_choice:
             print("\n\nInterrupt received. Exiting...")
             sys.exit(0)
-        else:
-            # Get model info using the helper function
-            model_info = get_model_info(model_choice)
-            if model_info:
-                model_provider = model_info.provider.value
-                print(f"\nSelected {Fore.CYAN}{model_provider}{Style.RESET_ALL} model: {Fore.GREEN + Style.BRIGHT}{model_choice}{Style.RESET_ALL}\n")
-            else:
-                model_provider = "Unknown"
-                print(f"\nSelected model: {Fore.GREEN + Style.BRIGHT}{model_choice}{Style.RESET_ALL}\n")
+        model_info = get_model_info(model_choice)
+        model_provider = model_info.provider.value if model_info else "OpenAI"
+    else:
+        model_choice = "gpt-4o"
+        model_provider = "OpenAI"
 
     # Create the workflow with selected analysts
     workflow = create_workflow(selected_analysts)
@@ -309,6 +295,7 @@ if __name__ == "__main__":
     }
 
     # Run the hedge fund
+    print("[INFO] Simulation started...")
     result = run_hedge_fund(
         tickers=tickers,
         start_date=start_date,
@@ -319,6 +306,7 @@ if __name__ == "__main__":
         model_name=model_choice,
         model_provider=model_provider,
     )
+    print("[INFO] Simulation completed.")
     print_trading_output(result)
     
     # Export to Excel if requested
@@ -326,3 +314,6 @@ if __name__ == "__main__":
         from src.utils.display import export_trading_results_to_excel
         export_trading_results_to_excel(result, args.excel_output)
         print(f"\nResults exported to {args.excel_output}")
+        import base64, json as _json
+        # Emit the result JSON as part of the RESULT line
+        print(f"RESULT:{{\"outputFile\": \"{args.excel_output}\", \"resultJson\": {_json.dumps(result)} }}", flush=True)

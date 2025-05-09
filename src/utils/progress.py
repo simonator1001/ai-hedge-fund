@@ -16,6 +16,7 @@ class AgentProgress:
         self.table = Table(show_header=False, box=None, padding=(0, 1))
         self.live = Live(self.table, console=console, refresh_per_second=4)
         self.started = False
+        self.on_update = None  # Optional callback for progress updates
 
     def start(self):
         """Start the progress display."""
@@ -40,6 +41,8 @@ class AgentProgress:
             self.agent_status[agent_name]["status"] = status
 
         self._refresh_display()
+        if self.on_update:
+            self.on_update(agent_name, ticker, status)
 
     def _refresh_display(self):
         """Refresh the progress display."""
