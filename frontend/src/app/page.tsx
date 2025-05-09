@@ -58,7 +58,7 @@ export default function Home() {
   const [sortKey, setSortKey] = useState('confidence');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showReasoning, setShowReasoning] = useState(true);
-  const [chartTicker, setChartTicker] = useState<string | null>(null);
+  const [chartTickers, setChartTickers] = useState<string[]>([]);
   const [chartStart, setChartStart] = useState<string | null>(null);
   const [chartEnd, setChartEnd] = useState<string | null>(null);
 
@@ -75,7 +75,7 @@ export default function Home() {
     const tickers = formData.get('tickers')?.toString() || '';
     const startDate = formData.get('startDate')?.toString() || '';
     const endDate = formData.get('endDate')?.toString() || '';
-    setChartTicker(tickers.split(',')[0]?.trim() || null);
+    setChartTickers(tickers.split(',').map(t => t.trim()).filter(Boolean));
     setChartStart(startDate);
     setChartEnd(endDate);
     const params = new URLSearchParams({
@@ -108,13 +108,18 @@ export default function Home() {
     es.addEventListener('result', (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('Simulation result event:', data); // Debug log
         if (data.outputFile) {
           setResult(data.outputFile);
         }
         if (data.resultJson) {
           setResultData(data.resultJson);
+        } else {
+          setResultData(null);
         }
-      } catch {}
+      } catch (err) {
+        console.error('Error parsing simulation result event:', err, event.data);
+      }
     });
   };
 
@@ -349,6 +354,12 @@ export default function Home() {
           </Table>
         </div>
       )}
+      {(!resultData && !loading) && (
+        <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
+          <h2 className="text-xl font-semibold text-white mb-4">No Simulation Results</h2>
+          <p className="text-gray-300">No results were returned from the simulation. Please check your input or try again.</p>
+        </div>
+      )}
       {result && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
           <h2 className="text-xl font-semibold text-white mb-4">Download Simulation Results</h2>
@@ -362,9 +373,9 @@ export default function Home() {
         </div>
       )}
 
-      {chartTicker && chartStart && chartEnd && (
+      {chartTickers.length > 0 && chartStart && chartEnd && (
         <div className="mt-8">
-          <StockPriceChart ticker={chartTicker} start={chartStart} end={chartEnd} />
+          <StockPriceChart tickers={chartTickers} start={chartStart} end={chartEnd} />
         </div>
       )}
     </div>

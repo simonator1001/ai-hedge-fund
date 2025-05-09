@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // TODO: Replace with actual backend API endpoint
+    // Ensure backendUrl uses port 8000 (FastAPI), not 3001
     const backendUrl = `http://localhost:8000/api/price-history?ticker=${encodeURIComponent(ticker)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
     const res = await fetch(backendUrl);
     if (!res.ok) {

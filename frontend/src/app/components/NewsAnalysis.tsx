@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Timeline } from "./ui/timeline";
 
 interface NewsItem {
   title: string;
@@ -208,50 +209,53 @@ export default function NewsAnalysis({
       {news.length > 0 && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-4">Related News</h3>
-          <div className="space-y-4">
-            {news.map((item, index) => (
-              <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
-                <h4 className="text-md font-medium text-white">
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
-                    {item.title}
-                  </a>
-                </h4>
-                <p className="mt-1 text-sm text-gray-300">{item.description}</p>
-                {item.content && (
-                  <div className="mt-2 text-sm text-gray-400 max-h-40 overflow-y-auto">
-                    {item.content}
-                  </div>
-                )}
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {item.sentiment && (
-                      <span className={`px-2 py-1 text-xs rounded ${
-                        item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
-                        item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
-                        'bg-gray-900 text-gray-200'
-                      }`}>
-                        {item.sentiment}
+          <Timeline
+            data={news.map((item) => ({
+              title: item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : item.title,
+              content: (
+                <div>
+                  <h4 className="text-md font-medium text-white">
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
+                      {item.title}
+                    </a>
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-300">{item.description}</p>
+                  {item.content && (
+                    <div className="mt-2 text-sm text-gray-400 max-h-40 overflow-y-auto">
+                      {item.content}
+                    </div>
+                  )}
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {item.sentiment && (
+                        <span className={`px-2 py-1 text-xs rounded ${
+                          item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
+                          item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
+                          'bg-gray-900 text-gray-200'
+                        }`}>
+                          {item.sentiment}
+                        </span>
+                      )}
+                      {item.relevantStocks && item.relevantStocks.length > 0 && (
+                        <div className="flex items-center space-x-1">
+                          {item.relevantStocks.map((stock, idx) => (
+                            <span key={idx} className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded">
+                              {stock}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {item.publishedAt && (
+                      <span className="text-xs text-gray-400">
+                        {new Date(item.publishedAt).toLocaleDateString()}
                       </span>
                     )}
-                    {item.relevantStocks && item.relevantStocks.length > 0 && (
-                      <div className="flex items-center space-x-1">
-                        {item.relevantStocks.map((stock, idx) => (
-                          <span key={idx} className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded">
-                            {stock}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                  {item.publishedAt && (
-                    <span className="text-xs text-gray-400">
-                      {new Date(item.publishedAt).toLocaleDateString()}
-                    </span>
-                  )}
                 </div>
-              </div>
-            ))}
-          </div>
+              ),
+            }))}
+          />
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const baseUrl = `${protocol}://${host}`;
 
     // Call the MCP endpoint with search query
-    const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
+    const searchResponse = await fetch('/api/mcp/firecrawl/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(formattedResults);
 
     /* Commented out for testing
-    const searchResponse = await fetch('http://localhost:3000/api/mcp/firecrawl/search', {
+    const searchResponse = await fetch('/api/mcp/firecrawl/search', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     const detailedResults = await Promise.all(
       searchResults.map(async (result: any) => {
         try {
-          const scrapeResponse = await fetch('http://localhost:3000/api/mcp/firecrawl/scrape', {
+          const scrapeResponse = await fetch('/api/mcp/firecrawl/scrape', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
