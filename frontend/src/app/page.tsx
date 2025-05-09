@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { format } from 'date-fns';
 import NewsAnalysis from './components/NewsAnalysis';
 
@@ -44,10 +44,24 @@ export default function Home() {
   const [selectedAnalysts, setSelectedAnalysts] = useState<string[]>(['ben_graham']);
   const [modelProvider, setModelProvider] = useState<string>('OpenAI');
   const [modelChoice, setModelChoice] = useState<string>(MODELS_BY_PROVIDER['OpenAI'][0].value);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState('');
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
+    setResult(null);
+    setProgress(0);
+    setStatus('Running simulation...');
+    // Animate progress bar up to 90%
+    if (progressInterval.current) clearInterval(progressInterval.current);
+    progressInterval.current = setInterval(() => {
+      setProgress(prev => {
+        if (prev < 90) return prev + 1;
+        return prev;
+      });
+    }, 100);
     const formData = new FormData(e.currentTarget);
     const data = {
       tickers: formData.get('tickers')?.toString().split(',').map(t => t.trim()),
@@ -66,16 +80,22 @@ export default function Home() {
         },
         body: JSON.stringify(data),
       });
+      setStatus('Generating report...');
       if (!response.ok) {
         throw new Error('Simulation failed');
       }
       const result = await response.json();
       setResult(result.outputFile);
+      setProgress(100);
+      setStatus('Simulation complete!');
     } catch (error) {
       console.error('Error:', error);
       alert('Failed to run simulation. Please try again.');
+      setStatus('Simulation failed.');
+      setProgress(0);
     } finally {
       setLoading(false);
+      if (progressInterval.current) clearInterval(progressInterval.current);
     }
   };
 
@@ -95,6 +115,17 @@ export default function Home() {
 
       <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
         <h1 className="text-2xl font-bold text-white mb-6">Stock Market Simulator</h1>
+        {loading && (
+          <div className="mb-4">
+            <div className="w-full bg-gray-800 rounded-full h-3 mb-2">
+              <div
+                className="bg-indigo-500 h-3 rounded-full transition-all duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-indigo-200 text-sm">{status} {progress}%</div>
+          </div>
+        )}
         <form id="simulation-form" onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
