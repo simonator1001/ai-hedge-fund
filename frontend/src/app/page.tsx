@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import NewsAnalysis from './components/NewsAnalysis';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "./components/ui/table";
 import StockPriceChart from './components/StockPriceChart';
+import { AnalystAnalysisTable, AnalystSignal } from "./components/ui/analyst-analysis-table";
 
 const ANALYSTS = [
   { label: 'Ben Graham', value: 'ben_graham' },
@@ -355,6 +356,14 @@ export default function Home() {
               ))}
             </TableBody>
           </Table>
+          {/* Analyst Analysis Tables */}
+          {resultData.analyst_signals && Object.entries(resultData.analyst_signals).map(([agent, signals]) => (
+            <AnalystAnalysisTable
+              key={agent}
+              data={signals as Record<string, AnalystSignal>}
+              analystName={agent.replace("_agent", "").replace(/_/g, " ")}
+            />
+          ))}
         </div>
       )}
       {(!resultData && !loading) && (
