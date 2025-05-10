@@ -62,6 +62,9 @@ export default function Home() {
   const [chartTickers, setChartTickers] = useState<string[]>([]);
   const [chartStart, setChartStart] = useState<string | null>(null);
   const [chartEnd, setChartEnd] = useState<string | null>(null);
+  const [tickerSearch, setTickerSearch] = useState('');
+  const [tickerSuggestions, setTickerSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -167,6 +170,32 @@ export default function Home() {
       return 0;
     });
 
+  // Autocomplete handler
+  const handleTickerInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setTickerSearch(value);
+    setShowSuggestions(true);
+    if (value.length < 2) {
+      setTickerSuggestions([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/search-ticker?q=${encodeURIComponent(value)}`);
+      const data = await res.json();
+      setTickerSuggestions(data.matches || []);
+    } catch {
+      setTickerSuggestions([]);
+    }
+  };
+
+  const handleSuggestionClick = (symbol: string) => {
+    setTickerSearch(symbol);
+    setShowSuggestions(false);
+    // Also update the input field in the form
+    const tickerInput = document.getElementById('tickers') as HTMLInputElement;
+    if (tickerInput) tickerInput.value = symbol;
+  };
+
   return (
     <div className="space-y-8">
       <NewsAnalysis onStockSelect={handleStockSelect} />
@@ -187,17 +216,33 @@ export default function Home() {
         <form id="simulation-form" onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
-              Stock Tickers
+              Stock Tickers or Company Name
             </label>
             <input
               type="text"
               name="tickers"
               id="tickers"
               className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              placeholder="PLTR, AAPL, MSFT"
+              placeholder="PLTR, AAPL, MSFT or Apple, Tesla, Tencent"
+              value={tickerSearch}
+              onChange={handleTickerInput}
+              autoComplete="off"
               required
             />
-            <p className="mt-1 text-sm text-gray-400">Separate multiple tickers with commas</p>
+            {showSuggestions && tickerSuggestions.length > 0 && (
+              <ul className="absolute z-10 bg-gray-800 border border-gray-600 rounded w-full mt-1 max-h-48 overflow-y-auto">
+                {tickerSuggestions.map((s, i) => (
+                  <li
+                    key={s.symbol + i}
+                    className="px-3 py-2 hover:bg-indigo-600 hover:text-white cursor-pointer"
+                    onClick={() => handleSuggestionClick(s.symbol)}
+                  >
+                    <span className="font-semibold">{s.symbol}</span> - {s.shortname} <span className="text-xs text-gray-400">({s.exchDisp}, {s.typeDisp})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1 text-sm text-gray-400">Type a company name or ticker. Suggestions will appear as you type.</p>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
