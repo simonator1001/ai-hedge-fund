@@ -73,8 +73,11 @@ export default function Home() {
     // Build query string for SSE
     const formData = new FormData(e.currentTarget);
     const tickers = formData.get('tickers')?.toString() || '';
-    const startDate = formData.get('startDate')?.toString() || '';
-    const endDate = formData.get('endDate')?.toString() || '';
+    let startDate = formData.get('startDate')?.toString() || '';
+    let endDate = formData.get('endDate')?.toString() || '';
+    // Ensure date format is yyyy-MM-dd (replace any slashes with dashes)
+    startDate = startDate.replaceAll('/', '-');
+    endDate = endDate.replaceAll('/', '-');
     setChartTickers(tickers.split(',').map(t => t.trim()).filter(Boolean));
     setChartStart(startDate);
     setChartEnd(endDate);

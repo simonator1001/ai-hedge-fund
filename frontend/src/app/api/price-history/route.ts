@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import yahooFinance from 'yahoo-finance2';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -11,16 +12,23 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // TODO: Replace with actual backend API endpoint
-    // Ensure backendUrl uses port 8000 (FastAPI), not 3001
-    const backendUrl = `http://localhost:8000/api/price-history?ticker=${encodeURIComponent(ticker)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
-    const res = await fetch(backendUrl);
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Failed to fetch price data from backend.' }, { status: 500 });
-    }
-    const data = await res.json();
-    return NextResponse.json(data);
+    // Yahoo Finance expects dates as YYYY-MM-DD
+    const result = await yahooFinance.historical(ticker, {
+      period1: start,
+      period2: end,
+      interval: '1d',
+    });
+    // Format the result to match the expected frontend format
+    const prices = result.map((row: any) => ({
+      open: row.open,
+      close: row.close,
+      high: row.high,
+      low: row.low,
+      volume: row.volume,
+      time: row.date ? new Date(row.date).toISOString().slice(0, 10) : '',
+    }));
+    return NextResponse.json({ prices });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch price data from Yahoo Finance.' }, { status: 500 });
   }
 } 
