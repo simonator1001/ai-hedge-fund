@@ -233,7 +233,7 @@ export default function Home() {
               <ul className="absolute z-10 bg-gray-800 border border-gray-600 rounded w-full mt-1 max-h-48 overflow-y-auto">
                 {tickerSuggestions.map((s, i) => (
                   <li
-                    key={s.symbol + i}
+                    key={s.symbol ? `${s.symbol}-${i}` : `suggestion-${i}`}
                     className="px-3 py-2 hover:bg-indigo-600 hover:text-white cursor-pointer"
                     onClick={() => handleSuggestionClick(s.symbol)}
                   >
