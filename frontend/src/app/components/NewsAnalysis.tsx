@@ -84,6 +84,9 @@ export default function NewsAnalysis({
         publishedAt: item.publishedAt || item.date || '',
       }));
       
+      // Debug: log the news results
+      console.log('Fetched news articles:', newsResults);
+
       // Then analyze the news for opportunities
       const analysisResponse = await fetch('/api/analyze-news', {
         method: 'POST',
@@ -279,6 +282,12 @@ export default function NewsAnalysis({
               ),
             }))}
           />
+        </div>
+      )}
+
+      {news.length === 0 && !loading && !error && (
+        <div className="mt-4 p-4 bg-yellow-900/50 border border-yellow-700 rounded-md">
+          <p className="text-yellow-200">No news articles found for the given keywords and date range.</p>
         </div>
       )}
     </div>
