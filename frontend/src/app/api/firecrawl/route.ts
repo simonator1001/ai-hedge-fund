@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     const baseUrl = `${protocol}://${host}`;
 
     // Call the MCP endpoint with search query
-    const searchResponse = await fetch('/api/mcp/firecrawl/search', {
+    const searchResponse = await fetch(`${baseUrl}/api/mcp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

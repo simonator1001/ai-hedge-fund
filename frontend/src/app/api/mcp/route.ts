@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "sonar-pro",
+          model: "sonar-small-chat",
           messages: [
             {
               role: "system",

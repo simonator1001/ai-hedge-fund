@@ -316,4 +316,17 @@ if __name__ == "__main__":
         print(f"\nResults exported to {args.excel_output}")
         import base64, json as _json
         # Emit the result JSON as part of the RESULT line
-        print(f"RESULT:{{\"outputFile\": \"{args.excel_output}\", \"resultJson\": {_json.dumps(result)} }}", flush=True)
+        def clean_json(obj):
+            import math
+            if isinstance(obj, float):
+                if math.isnan(obj) or math.isinf(obj):
+                    return None
+                return obj
+            elif isinstance(obj, dict):
+                return {k: clean_json(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [clean_json(x) for x in obj]
+            else:
+                return obj
+        cleaned_result = clean_json(result)
+        print(f"RESULT:{{\"outputFile\": \"{args.excel_output}\", \"resultJson\": {_json.dumps(cleaned_result, allow_nan=False)} }}", flush=True)

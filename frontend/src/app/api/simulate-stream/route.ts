@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
+      let closed = false;
+      let sawResult = false;
       const simulation = spawn('poetry', ['run', 'python', ...args], {
         cwd: process.cwd(),
       });
@@ -40,20 +42,30 @@ export async function GET(req: NextRequest) {
         for (const line of lines) {
           if (line.startsWith('PROGRESS:')) {
             const payload = line.replace('PROGRESS:', '');
-            controller.enqueue(encoder.encode(`event: progress\ndata: ${payload}\n\n`));
+            if (!closed) controller.enqueue(encoder.encode(`event: progress\ndata: ${payload}\n\n`));
           }
           if (line.startsWith('RESULT:')) {
+            sawResult = true;
             const payload = line.replace('RESULT:', '');
-            controller.enqueue(encoder.encode(`event: result\ndata: ${payload}\n\n`));
+            if (!closed) controller.enqueue(encoder.encode(`event: result\ndata: ${payload}\n\n`));
           }
         }
       });
       simulation.on('close', (code) => {
-        controller.enqueue(encoder.encode(`event: progress\ndata: {"percent":100,"status":"Simulation complete!"}\n\n`));
-        controller.close();
+        if (!sawResult && !closed) {
+          controller.enqueue(encoder.encode(`event: error\ndata: {"message":"No simulation result. Please check if the ticker is valid and supported."}\n\n`));
+        }
+        if (!closed) controller.enqueue(encoder.encode(`event: progress\ndata: {"percent":100,"status":"Simulation complete!"}\n\n`));
+        if (!closed) controller.close();
+        closed = true;
       });
       simulation.stderr.on('data', (data) => {
-        controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify(data.toString())}\n\n`));
+        if (!closed) controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify(data.toString())}\n\n`));
+      });
+      simulation.on('error', (err) => {
+        if (!closed) controller.enqueue(encoder.encode(`event: error\ndata: {"message":${JSON.stringify(err.message)}}\n\n`));
+        if (!closed) controller.close();
+        closed = true;
       });
     },
   });

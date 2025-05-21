@@ -1,7 +1,9 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from src.tools.api import get_prices
+import math
+import traceback
 
 app = FastAPI()
 
@@ -14,6 +16,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def clean_json(obj):
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    elif isinstance(obj, dict):
+        return {k: clean_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_json(x) for x in obj]
+    else:
+        return obj
+
 @app.get("/api/price-history")
 def price_history(
     ticker: str = Query(..., description="Stock ticker symbol"),
@@ -22,9 +36,15 @@ def price_history(
 ):
     try:
         prices = get_prices(ticker, start, end)
-        return JSONResponse(content={"prices": [p.model_dump() for p in prices]})
+        if not prices:
+            raise HTTPException(status_code=404, detail="No price data found for this ticker and date range.")
+        return JSONResponse(content=clean_json({"prices": prices}))
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        print(f"Error fetching price data for {ticker}: {e}")
+        traceback.print_exc()
+        return JSONResponse(content={"error": str(e), "trace": traceback.format_exc()}, status_code=500)
 
 if __name__ == "__main__":
     import uvicorn

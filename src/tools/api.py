@@ -2,9 +2,10 @@ import datetime
 import os
 import pandas as pd
 import requests
+import logging
 
-from data.cache import get_cache
-from data.models import (
+from src.data.cache import get_cache
+from src.data.models import (
     CompanyNews,
     CompanyNewsResponse,
     FinancialMetrics,
@@ -22,33 +23,89 @@ from data.models import (
 _cache = get_cache()
 
 
+def normalize_ticker(ticker: str) -> str:
+    """Normalize HK tickers to zero-padded 4 digits + .HK, else return as is."""
+    if ticker.upper().endswith('.HK'):
+        base = ticker[:-3]
+        if base.isdigit():
+            return base.zfill(4) + '.HK'
+        return ticker
+    # If just 4 digits, assume HK
+    if ticker.isdigit() and len(ticker) <= 4:
+        return ticker.zfill(4) + '.HK'
+    return ticker
+
+
+def try_hk_ticker_formats(api_func, ticker, *args, **kwargs):
+    """Try all common HK ticker formats and return the first successful result."""
+    # Remove .HK/.hk/.HK:/.hk: for base
+    base = ticker.upper().replace('.HK', '').replace(':HK', '')
+    formats = [
+        base.zfill(4) + '.HK',
+        base + '.HK',
+        base.zfill(4) + ':HK',
+        base + ':HK',
+        base.zfill(4),
+        base,
+    ]
+    errors = []
+    for fmt in formats:
+        try:
+            result = api_func(fmt, *args, **kwargs)
+            if result:
+                logging.info(f"HK ticker {ticker}: worked with {fmt}")
+                return result
+        except Exception as e:
+            errors.append(str(e))
+            continue
+    raise Exception(f"All HK ticker formats failed for {ticker}. Errors: {errors}")
+
+
 def get_prices(ticker: str, start_date: str, end_date: str) -> list[Price]:
     """Fetch price data from cache or API."""
-    # Check cache first
+    # If HK ticker, try all formats
+    if ticker.upper().endswith('.HK') or ticker.isdigit() or (':' in ticker and ticker.upper().endswith(':HK')):
+        def api_call(fmt, *a, **kw):
+            logging.info(f"Trying HK ticker format: {fmt}")
+            # Check cache first
+            if cached_data := _cache.get_prices(fmt):
+                filtered_data = [Price(**price) for price in cached_data if start_date <= price["time"] <= end_date]
+                if filtered_data:
+                    return filtered_data
+            headers = {}
+            if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
+                headers["X-API-KEY"] = api_key
+            url = f"https://api.financialdatasets.ai/prices/?ticker={fmt}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
+            response = requests.get(url, headers=headers)
+            logging.info(f"API response for {fmt}: {response.status_code}")
+            if response.status_code != 200:
+                raise Exception(f"Error fetching data: {fmt} - {response.status_code} - {response.text}")
+            price_response = PriceResponse(**response.json())
+            prices = price_response.prices
+            if not prices:
+                return []
+            _cache.set_prices(fmt, [p.model_dump() for p in prices])
+            return prices
+        return try_hk_ticker_formats(api_call, ticker)
+    # ... original logic for non-HK ...
+    ticker = normalize_ticker(ticker)
+    logging.info(f"Fetching prices for ticker: {ticker}")
     if cached_data := _cache.get_prices(ticker):
-        # Filter cached data by date range and convert to Price objects
         filtered_data = [Price(**price) for price in cached_data if start_date <= price["time"] <= end_date]
         if filtered_data:
             return filtered_data
-
-    # If not in cache or no data in range, fetch from API
     headers = {}
     if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
         headers["X-API-KEY"] = api_key
-
     url = f"https://api.financialdatasets.ai/prices/?ticker={ticker}&interval=day&interval_multiplier=1&start_date={start_date}&end_date={end_date}"
     response = requests.get(url, headers=headers)
+    logging.info(f"API response for {ticker}: {response.status_code}")
     if response.status_code != 200:
         raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-
-    # Parse response with Pydantic model
     price_response = PriceResponse(**response.json())
     prices = price_response.prices
-
     if not prices:
         return []
-
-    # Cache the results as dicts
     _cache.set_prices(ticker, [p.model_dump() for p in prices])
     return prices
 
@@ -60,35 +117,52 @@ def get_financial_metrics(
     limit: int = 10,
 ) -> list[FinancialMetrics]:
     """Fetch financial metrics from cache or API."""
-    # Check cache first
+    # If HK ticker, try all formats
+    if ticker.upper().endswith('.HK') or ticker.isdigit() or (':' in ticker and ticker.upper().endswith(':HK')):
+        def api_call(fmt, *a, **kw):
+            logging.info(f"Trying HK ticker format: {fmt}")
+            if cached_data := _cache.get_financial_metrics(fmt):
+                filtered_data = [FinancialMetrics(**metric) for metric in cached_data if metric["report_period"] <= end_date]
+                filtered_data.sort(key=lambda x: x.report_period, reverse=True)
+                if filtered_data:
+                    return filtered_data[:limit]
+            headers = {}
+            if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
+                headers["X-API-KEY"] = api_key
+            url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={fmt}&report_period_lte={end_date}&limit={limit}&period={period}"
+            response = requests.get(url, headers=headers)
+            logging.info(f"API response for {fmt}: {response.status_code}")
+            if response.status_code != 200:
+                raise Exception(f"Error fetching data: {fmt} - {response.status_code} - {response.text}")
+            metrics_response = FinancialMetricsResponse(**response.json())
+            financial_metrics = metrics_response.financial_metrics
+            if not financial_metrics:
+                return []
+            _cache.set_financial_metrics(fmt, [m.model_dump() for m in financial_metrics])
+            return financial_metrics[:limit]
+        return try_hk_ticker_formats(api_call, ticker)
+    # ... original logic for non-HK ...
+    ticker = normalize_ticker(ticker)
+    logging.info(f"Fetching financial metrics for ticker: {ticker}")
     if cached_data := _cache.get_financial_metrics(ticker):
-        # Filter cached data by date and limit
         filtered_data = [FinancialMetrics(**metric) for metric in cached_data if metric["report_period"] <= end_date]
         filtered_data.sort(key=lambda x: x.report_period, reverse=True)
         if filtered_data:
             return filtered_data[:limit]
-
-    # If not in cache or insufficient data, fetch from API
     headers = {}
     if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
         headers["X-API-KEY"] = api_key
-
     url = f"https://api.financialdatasets.ai/financial-metrics/?ticker={ticker}&report_period_lte={end_date}&limit={limit}&period={period}"
     response = requests.get(url, headers=headers)
+    logging.info(f"API response for {ticker}: {response.status_code}")
     if response.status_code != 200:
         raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
-
-    # Parse response with Pydantic model
     metrics_response = FinancialMetricsResponse(**response.json())
-    # Return the FinancialMetrics objects directly instead of converting to dict
     financial_metrics = metrics_response.financial_metrics
-
     if not financial_metrics:
         return []
-
-    # Cache the results as dicts
     _cache.set_financial_metrics(ticker, [m.model_dump() for m in financial_metrics])
-    return financial_metrics
+    return financial_metrics[:limit]
 
 
 def search_line_items(
@@ -99,6 +173,8 @@ def search_line_items(
     limit: int = 10,
 ) -> list[LineItem]:
     """Fetch line items from API."""
+    ticker = normalize_ticker(ticker)
+    logging.info(f"Searching line items for ticker: {ticker}")
     # If not in cache or insufficient data, fetch from API
     headers = {}
     if api_key := os.environ.get("FINANCIAL_DATASETS_API_KEY"):
@@ -114,6 +190,7 @@ def search_line_items(
         "limit": limit,
     }
     response = requests.post(url, headers=headers, json=body)
+    logging.info(f"API response for {ticker}: {response.status_code}")
     if response.status_code != 200:
         raise Exception(f"Error fetching data: {ticker} - {response.status_code} - {response.text}")
     data = response.json()

@@ -43,23 +43,46 @@ export default function NewsAnalysis({
     setLoading(true);
     setError(null);
     try {
-      // First, get news using Firecrawl
-      const firecrawlResponse = await fetch('/api/firecrawl', {
+      // First, get news using Google News
+      const googleNewsResponse = await fetch('/api/google-search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: `${keywords} date:${dateRange.start} to ${dateRange.end}`,
-          limit: 10,
+          query: keywords,
+          num: 20,
         }),
       });
 
-      if (!firecrawlResponse.ok) {
+      if (!googleNewsResponse.ok) {
         throw new Error('Failed to fetch news');
       }
 
-      const newsResults = await firecrawlResponse.json();
+      const googleNewsResults = await googleNewsResponse.json();
+      // googleNewsResults is expected to be { results: [...] } or just [...], handle both
+      const articles = Array.isArray(googleNewsResults)
+        ? googleNewsResults
+        : googleNewsResults.results || googleNewsResults.articles || [];
+
+      // Filter by date range (if publishedAt/date is available)
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      const filteredArticles = articles.filter((item: any) => {
+        const dateStr = item.publishedAt || item.date;
+        if (!dateStr) return true; // If no date, include
+        const d = new Date(dateStr);
+        return d >= startDate && d <= endDate;
+      });
+
+      // Map to NewsItem format
+      const newsResults: NewsItem[] = filteredArticles.map((item: any) => ({
+        title: item.title || item.headline || 'Untitled',
+        description: item.description || item.snippet || item.summary || '',
+        url: item.url || item.link,
+        content: item.content || item.snippet || '',
+        publishedAt: item.publishedAt || item.date || '',
+      }));
       
       // Then analyze the news for opportunities
       const analysisResponse = await fetch('/api/analyze-news', {
@@ -214,45 +237,45 @@ export default function NewsAnalysis({
               title: item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : item.title,
               content: (
                 <div>
-                  <h4 className="text-md font-medium text-white">
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
-                      {item.title}
-                    </a>
-                  </h4>
-                  <p className="mt-1 text-sm text-gray-300">{item.description}</p>
-                  {item.content && (
-                    <div className="mt-2 text-sm text-gray-400 max-h-40 overflow-y-auto">
-                      {item.content}
-                    </div>
-                  )}
-                  <div className="mt-2 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {item.sentiment && (
-                        <span className={`px-2 py-1 text-xs rounded ${
-                          item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
-                          item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
-                          'bg-gray-900 text-gray-200'
-                        }`}>
-                          {item.sentiment}
-                        </span>
-                      )}
-                      {item.relevantStocks && item.relevantStocks.length > 0 && (
-                        <div className="flex items-center space-x-1">
-                          {item.relevantStocks.map((stock, idx) => (
-                            <span key={idx} className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded">
-                              {stock}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {item.publishedAt && (
-                      <span className="text-xs text-gray-400">
-                        {new Date(item.publishedAt).toLocaleDateString()}
+                <h4 className="text-md font-medium text-white">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
+                    {item.title}
+                  </a>
+                </h4>
+                <p className="mt-1 text-sm text-gray-300">{item.description}</p>
+                {item.content && (
+                  <div className="mt-2 text-sm text-gray-400 max-h-40 overflow-y-auto">
+                    {item.content}
+                  </div>
+                )}
+                <div className="mt-2 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {item.sentiment && (
+                      <span className={`px-2 py-1 text-xs rounded ${
+                        item.sentiment === 'positive' ? 'bg-green-900 text-green-200' :
+                        item.sentiment === 'negative' ? 'bg-red-900 text-red-200' :
+                        'bg-gray-900 text-gray-200'
+                      }`}>
+                        {item.sentiment}
                       </span>
                     )}
+                    {item.relevantStocks && item.relevantStocks.length > 0 && (
+                      <div className="flex items-center space-x-1">
+                        {item.relevantStocks.map((stock, idx) => (
+                          <span key={idx} className="px-2 py-1 text-xs bg-blue-900 text-blue-200 rounded">
+                            {stock}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                  {item.publishedAt && (
+                    <span className="text-xs text-gray-400">
+                      {new Date(item.publishedAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
+              </div>
               ),
             }))}
           />

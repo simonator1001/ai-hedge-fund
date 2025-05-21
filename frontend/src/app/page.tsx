@@ -77,12 +77,24 @@ export default function Home() {
 
     // Build query string for SSE
     const formData = new FormData(e.currentTarget);
-    const tickers = formData.get('tickers')?.toString() || '';
+    let tickers = formData.get('tickers')?.toString() || '';
     let startDate = formData.get('startDate')?.toString() || '';
     let endDate = formData.get('endDate')?.toString() || '';
     // Ensure date format is yyyy-MM-dd (replace any slashes with dashes)
     startDate = startDate.replaceAll('/', '-');
     endDate = endDate.replaceAll('/', '-');
+    tickers = tickers.split(',').map(t => {
+      let trimmed = t.trim();
+      // If it's a 4-digit number and not already .HK, add .HK
+      if (/^\d{4}$/.test(trimmed) && !trimmed.endsWith('.HK')) {
+        trimmed = trimmed + '.HK';
+      }
+      // If it's a 3-digit number (e.g., 700), pad and add .HK
+      if (/^\d{3}$/.test(trimmed) && !trimmed.endsWith('.HK')) {
+        trimmed = '0' + trimmed + '.HK';
+      }
+      return trimmed;
+    }).filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(', ');
     setChartTickers(tickers.split(',').map(t => t.trim()).filter(Boolean));
     setChartStart(startDate);
     setChartEnd(endDate);
@@ -141,35 +153,42 @@ export default function Home() {
     }
   };
 
-  // Helper to extract table data from resultData.decisions
-  const getTableRows = () => {
-    if (!resultData || !resultData.decisions) return [];
-    return Object.entries(resultData.decisions).map(([ticker, d]) => {
-      const decision = d as any;
-      return {
-        ticker,
-        action: decision.action,
-        quantity: decision.quantity,
-        confidence: decision.confidence,
-        reasoning: decision.reasoning,
-      };
-    });
+  // Helper to extract unified table data from simulation and analyst results
+  const getUnifiedTableRows = () => {
+    const rows: any[] = [];
+    // Simulation results
+    if (resultData && resultData.decisions) {
+      Object.entries(resultData.decisions).forEach(([ticker, d]) => {
+        const decision = d as any;
+        rows.push({
+          analyst: 'Simulation',
+          ticker,
+          action: decision.action,
+          quantity: decision.quantity,
+          confidence: decision.confidence,
+          price: decision.price,
+          reasoning: decision.reasoning,
+        });
+      });
+    }
+    // Analyst results
+    if (resultData && resultData.analyst_signals) {
+      Object.entries(resultData.analyst_signals).forEach(([analyst, signals]) => {
+        Object.entries(signals as Record<string, any>).forEach(([ticker, details]) => {
+          rows.push({
+            analyst: analyst.replace("_agent", "").replace(/_/g, " "),
+            ticker,
+            action: details.signal,
+            confidence: details.confidence,
+            price: details.price,
+            reasoning: typeof details.reasoning === 'string' ? details.reasoning : JSON.stringify(details.reasoning, null, 2),
+          });
+        });
+      });
+    }
+    return rows;
   };
-  const rows = getTableRows()
-    .filter(row =>
-      filter === '' ||
-      row.ticker.toLowerCase().includes(filter.toLowerCase()) ||
-      row.action.toLowerCase().includes(filter.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortKey === 'confidence') {
-        return sortDir === 'asc' ? a.confidence - b.confidence : b.confidence - a.confidence;
-      }
-      if (sortKey === 'ticker') {
-        return sortDir === 'asc' ? a.ticker.localeCompare(b.ticker) : b.ticker.localeCompare(a.ticker);
-      }
-      return 0;
-    });
+  const unifiedRows = getUnifiedTableRows();
 
   // Autocomplete handler
   const handleTickerInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -189,12 +208,18 @@ export default function Home() {
     }
   };
 
-  const handleSuggestionClick = (symbol: string) => {
-    setTickerSearch(symbol);
+  const handleSuggestionClick = (symbol: string, exchDisp?: string) => {
+    let finalSymbol = symbol;
+    // If it's an HK stock and doesn't end with .HK, add it
+    if ((exchDisp && exchDisp.toUpperCase().includes('HK')) && !symbol.endsWith('.HK')) {
+      // Pad to 4 digits if needed
+      finalSymbol = symbol.padStart(4, '0') + '.HK';
+    }
+    setTickerSearch(finalSymbol);
     setShowSuggestions(false);
     // Also update the input field in the form
     const tickerInput = document.getElementById('tickers') as HTMLInputElement;
-    if (tickerInput) tickerInput.value = symbol;
+    if (tickerInput) tickerInput.value = finalSymbol;
   };
 
   return (
@@ -214,7 +239,28 @@ export default function Home() {
             <div className="text-indigo-200 text-sm">{status} {progress}%</div>
           </div>
         )}
-        <form id="simulation-form" onSubmit={handleSubmit} className="space-y-6">
+        <form id="simulation-form" onSubmit={e => {
+          // On submit, auto-correct HK tickers in the input
+          const formData = new FormData(e.currentTarget);
+          let tickers = formData.get('tickers')?.toString() || '';
+          tickers = tickers.split(',').map(t => {
+            let trimmed = t.trim();
+            // If it's a 4-digit number and not already .HK, add .HK
+            if (/^\d{4}$/.test(trimmed) && !trimmed.endsWith('.HK')) {
+              trimmed = trimmed + '.HK';
+            }
+            // If it's a 3-digit number (e.g., 700), pad and add .HK
+            if (/^\d{3}$/.test(trimmed) && !trimmed.endsWith('.HK')) {
+              trimmed = '0' + trimmed + '.HK';
+            }
+            return trimmed;
+          }).filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(', ');
+          // Set the corrected value back to the input
+          const tickerInput = document.getElementById('tickers') as HTMLInputElement;
+          if (tickerInput) tickerInput.value = tickers;
+          // Continue with the original submit
+          handleSubmit(e);
+        }} className="space-y-6">
           <div>
             <label htmlFor="tickers" className="block text-sm font-medium text-gray-200">
               Stock Tickers or Company Name
@@ -236,7 +282,7 @@ export default function Home() {
                   <li
                     key={s.symbol ? `${s.symbol}-${i}` : `suggestion-${i}`}
                     className="px-3 py-2 hover:bg-indigo-600 hover:text-white cursor-pointer"
-                    onClick={() => handleSuggestionClick(s.symbol)}
+                    onClick={() => handleSuggestionClick(s.symbol, s.exchDisp)}
                   >
                     <span className="font-semibold">{s.symbol}</span> - {s.shortname} <span className="text-xs text-gray-400">({s.exchDisp}, {s.typeDisp})</span>
                   </li>
@@ -356,16 +402,8 @@ export default function Home() {
 
       {resultData && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700 mt-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Simulation Results</h2>
-          <SimulationResultsTable data={rows} />
-          {/* Analyst Analysis Tables */}
-          {resultData.analyst_signals && Object.entries(resultData.analyst_signals).map(([agent, signals]) => (
-            <AnalystAnalysisTable
-              key={agent}
-              data={signals as Record<string, AnalystSignal>}
-              analystName={agent.replace("_agent", "").replace(/_/g, " ")}
-            />
-          ))}
+          <h2 className="text-xl font-semibold text-white mb-4">Simulation & Analyst Results</h2>
+          <SimulationResultsTable data={unifiedRows} />
         </div>
       )}
       {(!resultData && !loading) && (
