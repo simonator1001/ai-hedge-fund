@@ -269,7 +269,7 @@ export default function NewsAnalysis({
               content: (
                 <div>
                 <h4 className="text-md font-medium text-white">
-                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400">
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 font-bold hover:text-indigo-300">
                     {item.title}
                   </a>
                 </h4>
