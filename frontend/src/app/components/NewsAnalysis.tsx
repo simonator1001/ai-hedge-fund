@@ -60,10 +60,10 @@ export default function NewsAnalysis({
       }
 
       const googleNewsResults = await googleNewsResponse.json();
-      // googleNewsResults is expected to be { results: [...] } or just [...], handle both
+      // googleNewsResults is expected to be { news: [...] } or just [...], handle all
       const articles = Array.isArray(googleNewsResults)
         ? googleNewsResults
-        : googleNewsResults.results || googleNewsResults.articles || [];
+        : googleNewsResults.news || googleNewsResults.results || googleNewsResults.articles || [];
 
       // Filter by date range (if publishedAt/date is available)
       const startDate = new Date(dateRange.start);
