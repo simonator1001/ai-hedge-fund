@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   try {
     const { query, num = 5 } = await req.json();
+    const safeNum = Math.min(Math.max(num, 1), 10); // Clamp between 1 and 10
 
     if (!query) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Google API key or CSE ID not configured' }, { status: 500 });
     }
 
-    const searchUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&cx=${cseId}&key=${apiKey}&num=${num}`;
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&cx=${cseId}&key=${apiKey}&num=${safeNum}`;
     console.log('[Google Search] Request URL:', searchUrl);
     const googleResponse = await fetch(searchUrl);
     const googleData = await googleResponse.json();
