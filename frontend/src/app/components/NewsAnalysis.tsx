@@ -92,7 +92,13 @@ export default function NewsAnalysis({
             nearestArticle = item;
           }
         });
-        if (nearestArticle) {
+        // If still no article with a date, fallback to all articles without a date
+        if (!nearestArticle) {
+          filteredArticles = articles.filter((item: any) => {
+            const dateStr = item.publishedAt || item.date;
+            return !dateStr;
+          });
+        } else {
           filteredArticles = [nearestArticle];
         }
       }
