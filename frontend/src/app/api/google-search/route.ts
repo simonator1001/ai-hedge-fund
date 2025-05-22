@@ -16,29 +16,28 @@ export async function POST(req: NextRequest) {
     }
 
     const searchUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&cx=${cseId}&key=${apiKey}&num=${num}`;
+    console.log('[Google Search] Request URL:', searchUrl);
     const googleResponse = await fetch(searchUrl);
-    if (!googleResponse.ok) {
-      const errorText = await googleResponse.text();
-      console.error('Google API error:', errorText);
-      return NextResponse.json({ error: 'Failed to fetch news from Google' }, { status: 500 });
-    }
     const googleData = await googleResponse.json();
-    // Parse items to news format
-    const articles = (googleData.items || []).map((item: any) => ({
-      id: item.cacheId || item.link,
+    console.log('[Google Search] Google API response:', googleData);
+    if (!googleResponse.ok) {
+      return NextResponse.json({ error: 'Google API error', details: googleData }, { status: 500 });
+    }
+
+    // Parse items
+    const items = googleData.items || [];
+    const newsResults = items.map((item: any) => ({
       title: item.title,
       description: item.snippet,
       url: item.link,
-      content: item.snippet,
       publishedAt: item.pagemap?.metatags?.[0]?.['article:published_time'] || '',
+      source: item.displayLink,
     }));
-    return NextResponse.json(articles);
-  } catch (error) {
-    console.error('Error in google-search route:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to search' },
-      { status: 500 }
-    );
+
+    return NextResponse.json({ news: newsResults });
+  } catch (error: any) {
+    console.error('[Google Search] Error:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
 
