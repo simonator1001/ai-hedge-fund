@@ -8,45 +8,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Query is required' }, { status: 400 });
     }
 
-    // Add news-specific terms to the query
-    const newsQuery = `${query} news articles`;
-
-    try {
-      // First try calling the MCP API
-      const response = await fetch('http://localhost:3001/api/mcp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tool: 'easyapi~all-in-one-rednote-xiaohongshu-scraper',
-          input: {
-            searchKeywords: [newsQuery]
-          }
-        }),
-      });
-
-      if (response.ok) {
-        const results = await response.json();
-        return NextResponse.json(results);
-      }
-      
-      // If MCP API fails, log error and fall back to mock data
-      const errorText = await response.text();
-      console.error('Perplexity API error, falling back to mock data:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText
-      });
-    } catch (error) {
-      console.error('Error calling MCP API, falling back to mock data:', error);
+    // Use Google Custom Search API
+    const apiKey = process.env.GOOGLE_API_KEY;
+    const cseId = process.env.GOOGLE_CSE_ID;
+    if (!apiKey || !cseId) {
+      return NextResponse.json({ error: 'Google API key or CSE ID not configured' }, { status: 500 });
     }
-    
-    // Fallback to mock data if API fails
-    console.log('Generating mock news articles as fallback');
-    const mockArticles = generateMockNews(query, num);
-    return NextResponse.json(mockArticles);
 
+    const searchUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&cx=${cseId}&key=${apiKey}&num=${num}`;
+    const googleResponse = await fetch(searchUrl);
+    if (!googleResponse.ok) {
+      const errorText = await googleResponse.text();
+      console.error('Google API error:', errorText);
+      return NextResponse.json({ error: 'Failed to fetch news from Google' }, { status: 500 });
+    }
+    const googleData = await googleResponse.json();
+    // Parse items to news format
+    const articles = (googleData.items || []).map((item: any) => ({
+      id: item.cacheId || item.link,
+      title: item.title,
+      description: item.snippet,
+      url: item.link,
+      content: item.snippet,
+      publishedAt: item.pagemap?.metatags?.[0]?.['article:published_time'] || '',
+    }));
+    return NextResponse.json(articles);
   } catch (error) {
     console.error('Error in google-search route:', error);
     return NextResponse.json(
