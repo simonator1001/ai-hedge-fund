@@ -15,7 +15,14 @@ interface OpportunityItem {
   ticker: string;
   confidence: number;
   reasons: string[];
-  newsReferences: string[];
+  newsReferences: {
+    title: string;
+    url: string;
+    snippet: string;
+    sentiment: string;
+  }[];
+  rationale?: string;
+  isFallback?: boolean;
 }
 
 interface ErrorResponse {
@@ -254,6 +261,34 @@ export default function NewsAnalysis({
                     <li key={idx} className="text-sm text-gray-300">• {reason}</li>
                   ))}
                 </ul>
+                {opportunity.rationale && (
+                  <div className="mt-2 text-xs text-gray-400 whitespace-pre-line">
+                    <strong>Rationale:</strong> {opportunity.rationale}
+                  </div>
+                )}
+                {opportunity.newsReferences && opportunity.newsReferences.length > 0 && (
+                  <div className="mt-2">
+                    <strong className="text-xs text-indigo-300">References:</strong>
+                    <ul className="mt-1 space-y-1">
+                      {opportunity.newsReferences.map((ref, refIdx) => (
+                        <li key={refIdx} className="text-xs text-gray-300">
+                          <a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 underline font-bold hover:text-indigo-300">
+                            {ref.title}
+                          </a>
+                          {ref.snippet && <span className="ml-1 text-gray-400">- {ref.snippet}</span>}
+                          {ref.sentiment && (
+                            <span className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${ref.sentiment === 'positive' ? 'bg-green-900 text-green-200' : ref.sentiment === 'negative' ? 'bg-red-900 text-red-200' : 'bg-gray-900 text-gray-200'}`}>{ref.sentiment}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {opportunity.isFallback && (
+                  <div className="mt-2 text-xs text-yellow-400">
+                    (No direct news correlation found, included for context)
+                  </div>
+                )}
               </div>
             ))}
           </div>

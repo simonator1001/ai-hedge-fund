@@ -41,8 +41,10 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // If no stocks found, use some common ones
+    // If no stocks found, use some common ones as fallback, but mark them
+    let useFallback = false;
     if (Object.keys(tickerCounts).length === 0) {
+      useFallback = true;
       ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA'].forEach(s => {
         tickerCounts[s] = { count: 1, newsRefs: [] };
       });
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
         reasons: reasons.slice(0, 2 + Math.floor(Math.random() * 2)), // 2-3 reasons
         newsReferences: references,
         rationale,
+        isFallback: useFallback
       };
     });
 
