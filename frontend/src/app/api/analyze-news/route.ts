@@ -53,18 +53,59 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 3);
 
-    // Build opportunities
+    // Helper: basic sentiment analysis
+    function getSentiment(text: string) {
+      const positiveWords = ["gain", "growth", "positive", "up", "increase", "profit", "strong", "bull", "record", "surge", "beat", "outperform", "success", "good", "win", "rise", "improve", "expand", "optimistic", "benefit", "support", "favorable", "advantage", "leadership", "innovate", "opportunity"];
+      const negativeWords = ["loss", "decline", "negative", "down", "decrease", "drop", "weak", "bear", "miss", "underperform", "fail", "bad", "fall", "reduce", "cut", "concern", "risk", "challenge", "problem", "lawsuit", "regulation", "penalty", "fine", "investigation", "scandal", "fraud", "bankrupt", "layoff", "close", "shut", "recession", "crisis", "volatile", "uncertain", "threat", "warning", "bearish"];
+      const textLower = text.toLowerCase();
+      let score = 0;
+      positiveWords.forEach(word => { if (textLower.includes(word)) score++; });
+      negativeWords.forEach(word => { if (textLower.includes(word)) score--; });
+      if (score > 0) return "positive";
+      if (score < 0) return "negative";
+      return "neutral";
+    }
+
+    // Build opportunities with references and rationale
     const opportunities = sortedTickers.map(([ticker, data]) => {
+      // Find all news articles that mention this ticker
+      const relatedArticles = news.filter((item: any) => {
+        const content = `${item.title} ${item.description} ${item.content || ''}`;
+        const matches = (content.match(stockRegex) || []) as string[];
+        return matches.includes(ticker);
+      });
+      // Build references and rationale
+      const references = relatedArticles.map((item: any) => {
+        const snippet = item.description || item.content || '';
+        const sentiment = getSentiment(snippet);
+        return {
+          title: item.title,
+          url: item.url,
+          snippet,
+          sentiment
+        };
+      });
+      // Compose rationale
+      let rationale = "";
+      if (references.length > 0) {
+        rationale = references.map(ref =>
+          `${ticker} is mentioned in \"${ref.title}\" (${ref.url}) because: ${ref.snippet} [Sentiment: ${ref.sentiment}]`
+        ).join("\n\n");
+      } else {
+        rationale = `${ticker} is a major stock in the market and is included for context.`;
+      }
       const reasons = [
-        `${ticker} is frequently mentioned in recent news about ${keywords}`,
-        `Recent developments may impact ${ticker}'s business model`,
-        `${ticker} is relevant to the topic: ${keywords}`
+        `${ticker} is frequently mentioned in recent news about ${keywords}.`,
+        `Recent developments may impact ${ticker}'s business model.`,
+        `${ticker} is relevant to the topic: ${keywords}.`,
+        rationale
       ];
       return {
         ticker,
         confidence: Math.floor(Math.random() * 30) + 70, // 70-99 confidence
         reasons: reasons.slice(0, 2 + Math.floor(Math.random() * 2)), // 2-3 reasons
-        newsReferences: Array.from(new Set(data.newsRefs)).slice(0, 2) // Reference up to 2 news items
+        newsReferences: references,
+        rationale,
       };
     });
 
