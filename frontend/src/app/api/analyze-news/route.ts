@@ -17,6 +17,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // List of valid US stock tickers (expand as needed)
+    const validTickers = new Set([
+      'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'AMD', 'INTC', 'PYPL', 'SQ', 'PLTR', 'MSTR', 'COIN',
+      'BRK', 'JPM', 'V', 'UNH', 'HD', 'DIS', 'BAC', 'VZ', 'ADBE', 'CRM', 'CSCO', 'PEP', 'T', 'WMT', 'XOM', 'CVX', 'PFE', 'ABT', 'TMO', 'MRK', 'LLY', 'NKE', 'ORCL', 'QCOM', 'TXN', 'COST', 'AVGO', 'HON', 'IBM', 'SBUX', 'GS', 'BLK', 'AXP', 'BA', 'MMM', 'GE', 'CAT', 'F', 'GM', 'FDX', 'UPS', 'LMT', 'RTX', 'MO', 'PM', 'KO', 'MCD', 'WBA', 'JNJ', 'PG', 'UNP', 'AMGN', 'MDT', 'CVS', 'GILD', 'ISRG', 'ZTS', 'VRTX', 'REGN', 'BIIB', 'BMY', 'CI', 'ANTM', 'CNC', 'HUM', 'ELV', 'DHR', 'SYK', 'BDX', 'EW', 'BSX', 'ABMD', 'ALGN', 'ILMN', 'IDXX', 'MTD', 'STE', 'RMD', 'TFX', 'A', 'BIO', 'PKI', 'TECH', 'WAT', 'BRKR', 'CRL', 'LH', 'DGX', 'NEOG', 'QDEL', 'TMO', 'WST', 'ZBH', 'COO', 'XRAY', 'ALC', 'BAX', 'BCR', 'CERN', 'DVA', 'HCA', 'UHS', 'UNH', 'VTRS', 'WBA', 'ZTS'
+    ]);
+
     // Extract stock tickers from real news articles
     const stockRegex = /\b[A-Z]{1,5}\b/g;
     const tickerCounts: Record<string, { count: number, newsRefs: string[] }> = {};
@@ -24,8 +30,8 @@ export async function POST(req: NextRequest) {
       const content = `${item.title} ${item.description} ${item.content || ''}`;
       const matches = content.match(stockRegex) || [];
       matches.forEach(match => {
-        // Filter out common acronyms that aren't stocks
-        if (!['CEO', 'CFO', 'CTO', 'IPO', 'GDP', 'USA', 'UK', 'EU', 'AI'].includes(match)) {
+        // Only count if in valid tickers
+        if (validTickers.has(match)) {
           if (!tickerCounts[match]) {
             tickerCounts[match] = { count: 0, newsRefs: [] };
           }
@@ -67,7 +73,7 @@ export async function POST(req: NextRequest) {
       // Assign relevant stocks if mentioned in the article
       const content = `${item.title} ${item.description} ${item.content || ''}`;
       const matches = content.match(stockRegex) || [];
-      const relevantStocks = matches.filter(match => tickerCounts[match]);
+      const relevantStocks = matches.filter(match => tickerCounts[match] && validTickers.has(match));
       return {
         ...item,
         sentiment: ['positive', 'negative', 'neutral'][Math.floor(Math.random() * 3)],
