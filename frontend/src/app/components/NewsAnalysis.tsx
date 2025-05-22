@@ -23,6 +23,7 @@ interface OpportunityItem {
   }[];
   rationale?: string;
   isFallback?: boolean;
+  selectionMethod?: 'ticker' | 'company_name' | 'industry' | 'fallback';
 }
 
 interface ErrorResponse {
@@ -236,11 +237,28 @@ export default function NewsAnalysis({
               <div key={index} className="p-4 bg-gray-800/50 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-lg font-medium text-white">{opportunity.ticker}</h4>
+                    <h4 className="text-lg font-medium text-white">
+                      {opportunity.ticker}
+                      {opportunity.selectionMethod && (
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                          opportunity.selectionMethod === 'ticker' ? 'bg-green-700 text-green-100' :
+                          opportunity.selectionMethod === 'company_name' ? 'bg-blue-700 text-blue-100' :
+                          opportunity.selectionMethod === 'industry' ? 'bg-purple-700 text-purple-100' :
+                          'bg-gray-700 text-gray-100'
+                        }`}>
+                          {opportunity.selectionMethod === 'ticker' ? 'ticker mention' :
+                           opportunity.selectionMethod === 'company_name' ? 'company name' :
+                           opportunity.selectionMethod === 'industry' ? 'industry relevance' :
+                           'suggested'}
+                        </span>
+                      )}
+                    </h4>
                     <div className="mt-1 flex items-center">
                       <div className="h-2 w-20 bg-gray-700 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-green-500" 
+                          className={`h-full ${
+                            opportunity.isFallback ? 'bg-yellow-500' : 'bg-green-500'
+                          }`}
                           style={{ width: `${opportunity.confidence}%` }}
                         />
                       </div>
