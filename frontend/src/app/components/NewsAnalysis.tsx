@@ -68,12 +68,34 @@ export default function NewsAnalysis({
       // Filter by date range (if publishedAt/date is available)
       const startDate = new Date(dateRange.start);
       const endDate = new Date(dateRange.end);
-      const filteredArticles = articles.filter((item: any) => {
+      let filteredArticles = articles.filter((item: any) => {
         const dateStr = item.publishedAt || item.date;
         if (!dateStr) return true; // If no date, include
         const d = new Date(dateStr);
         return d >= startDate && d <= endDate;
       });
+
+      // If no articles in range, find the article with the nearest date
+      if (filteredArticles.length === 0 && articles.length > 0) {
+        // Find the article with the date closest to the selected range
+        let minDiff = Infinity;
+        let nearestArticle = null;
+        articles.forEach((item: any) => {
+          const dateStr = item.publishedAt || item.date;
+          if (!dateStr) return;
+          const d = new Date(dateStr);
+          // Calculate distance to the middle of the selected range
+          const rangeMid = new Date((startDate.getTime() + endDate.getTime()) / 2);
+          const diff = Math.abs(d.getTime() - rangeMid.getTime());
+          if (diff < minDiff) {
+            minDiff = diff;
+            nearestArticle = item;
+          }
+        });
+        if (nearestArticle) {
+          filteredArticles = [nearestArticle];
+        }
+      }
 
       // Map to NewsItem format
       const newsResults: NewsItem[] = filteredArticles.map((item: any) => ({
