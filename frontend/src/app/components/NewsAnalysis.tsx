@@ -51,14 +51,35 @@ export default function NewsAnalysis({
     setLoading(true);
     setError(null);
     try {
-      // First, get news using Google News
+      // Step 1: Use Perplexity to refine the query
+      let refinedQuery = keywords;
+      try {
+        const perplexityRes = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: keywords }),
+        });
+        if (perplexityRes.ok) {
+          const perplexityData = await perplexityRes.json();
+          // Try to extract a better query from Perplexity's result
+          if (perplexityData && perplexityData.results && perplexityData.results.length > 0) {
+            // Use the top result's title or snippet as the refined query
+            refinedQuery = perplexityData.results[0].title || perplexityData.results[0].snippet || keywords;
+          }
+        }
+      } catch (err) {
+        // If Perplexity fails, fallback to original keywords
+        console.warn('Perplexity query refinement failed:', err);
+      }
+
+      // Step 2: Get news using Google News with the refined query
       const googleNewsResponse = await fetch('/api/google-search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: keywords,
+          query: refinedQuery,
           num: 20,
         }),
       });
@@ -315,7 +336,11 @@ export default function NewsAnalysis({
 
       {news.length > 0 && (
         <div className="bg-white/5 backdrop-blur-lg rounded-lg p-6 border border-gray-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Related News</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">
+            {keywords
+              ? `${keywords} News between ${dateRange.start} and ${dateRange.end}`
+              : `News between ${dateRange.start} and ${dateRange.end}`}
+          </h3>
           <Timeline
             data={news.map((item) => ({
               title: item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : item.title,
