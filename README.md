@@ -157,6 +157,7 @@ ai-hedge-fund/
 │   │   ├── valuation.py          # Valuation analysis agent
 │   │   ├── ...                   # Other agents
 │   │   ├── warren_buffett.py     # Warren Buffett agent
+│   │   ├── ...                   # Other agents
 │   ├── tools/                    # Agent tools
 │   │   ├── api.py                # API tools
 │   ├── backtester.py             # Backtesting tools
@@ -182,3 +183,7 @@ If you have a feature request, please open an [issue](https://github.com/virattt
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Development Milestones
+
+Key project updates between 2022 and 2024
